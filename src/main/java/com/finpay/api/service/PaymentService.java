@@ -42,14 +42,35 @@ public class PaymentService {
 
     @Transactional
     public Payment approvePayment(Long id) {
-
-        Payment payment = paymentRepository
-                            .findById(id)
-                            .orElseThrow(() -> new PaymentNotFoundException(id));
+        Payment payment = findPaymentOrThrow(id);
 
         payment.approve();
 
         return paymentRepository.save(payment);
+}
+
+    @Transactional
+    public Payment declinePayment(Long id) {
+        Payment payment = findPaymentOrThrow(id);
+
+        payment.decline();
+
+        return paymentRepository.save(payment);
     }
+
+    @Transactional
+    public Payment refundPayment(Long id) {
+        Payment payment = findPaymentOrThrow(id);
+
+        payment.refund();
+
+        return paymentRepository.save(payment);
+    }
+
+    private Payment findPaymentOrThrow(Long id) {
+        return paymentRepository.findById(id)
+                .orElseThrow(() -> new PaymentNotFoundException(id));
+    }
+
 
 }

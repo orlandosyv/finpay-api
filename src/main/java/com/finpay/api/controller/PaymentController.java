@@ -41,4 +41,14 @@ public class PaymentController {
         return paymentService.approvePayment(id);
     }
 
+    @PatchMapping("/{id}/decline")
+    public Payment declinePayment(@PathVariable Long id) {
+        return paymentService.declinePayment(id);
+    }
+
+    @PatchMapping("/{id}/refund")
+    public Payment refundPayment(@PathVariable Long id) {
+        return paymentService.refundPayment(id);
+    }
+
 }

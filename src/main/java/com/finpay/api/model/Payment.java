@@ -62,12 +62,33 @@ public class Payment {
     public void approve() {
         if (status != PaymentStatus.PENDING) {
             throw new InvalidPaymentStatusTransitionException(
-                status,
-                PaymentStatus.APPROVED
-            );
+                    status,
+                    PaymentStatus.APPROVED);
         }
 
         status = PaymentStatus.APPROVED;
+    }
+
+    public void decline() {
+        if (status != PaymentStatus.PENDING) {
+            throw new InvalidPaymentStatusTransitionException(
+                status,
+                PaymentStatus.DECLINED
+            );
+        }
+
+        status = PaymentStatus.DECLINED;
+    }
+
+    public void refund() {
+        if (status != PaymentStatus.APPROVED) {
+            throw new InvalidPaymentStatusTransitionException(
+                status,
+                PaymentStatus.REFUNDED
+            );
+        }
+
+        status = PaymentStatus.REFUNDED;
     }
 
 }
