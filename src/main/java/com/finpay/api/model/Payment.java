@@ -8,6 +8,8 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 
 @Entity
 @Table(name = "payments")
@@ -23,8 +25,9 @@ public class Payment {
     @Column(nullable = false, length = 3)
     private String currency;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
-    private String status;
+    private PaymentStatus status;
 
     protected Payment() {
         // Constructor sin parámetros requerido por JPA
@@ -33,7 +36,7 @@ public class Payment {
     public Payment(
             BigDecimal amount,
             String currency,
-            String status) {
+            PaymentStatus status) {
         this.amount = amount;
         this.currency = currency;
         this.status = status;
@@ -51,7 +54,18 @@ public class Payment {
         return currency;
     }
 
-    public String getStatus() {
+    public PaymentStatus getStatus() {
         return status;
     }
+
+    public void approve() {
+        if (status != PaymentStatus.PENDING) {
+            throw new IllegalStateException(
+                "Only PENDING payments can be approved"
+            );
+        }
+
+        status = PaymentStatus.APPROVED;
+    }
+
 }

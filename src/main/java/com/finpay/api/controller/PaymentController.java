@@ -35,4 +35,10 @@ public class PaymentController {
     public Payment createPayment(@RequestBody CreatePaymentRequest request) {
         return paymentService.createPayment(request);
     }
+
+    @PatchMapping("/{id}/approve")
+    public Payment approvePayment(@PathVariable Long id) {
+        return paymentService.approvePayment(id);
+    }
+
 }

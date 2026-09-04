@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.finpay.api.dto.CreatePaymentRequest;
 import com.finpay.api.model.Payment;
 import com.finpay.api.repository.PaymentRepository;
+import com.finpay.api.model.PaymentStatus;
 
 @Service
 public class PaymentService {
@@ -31,11 +32,24 @@ public class PaymentService {
     public Payment createPayment(CreatePaymentRequest request) {
 
         Payment payment = new Payment(
-            request.getAmount(),
-            request.getCurrency(),
-            "PENDING"
-        );
+                request.getAmount(),
+                request.getCurrency(),
+                PaymentStatus.PENDING);
 
         return paymentRepository.save(payment);
     }
+
+    @Transactional
+    public Payment approvePayment(Long id) {
+
+        Payment payment = paymentRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException(
+                    "Payment with id " + id + " was not found"
+                ));
+
+        payment.approve();
+
+        return paymentRepository.save(payment);
+    }
+
 }
