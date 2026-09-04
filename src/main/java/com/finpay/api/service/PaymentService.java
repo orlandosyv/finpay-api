@@ -1,18 +1,36 @@
 package com.finpay.api.service;
 
-import com.finpay.api.model.Payment;
-import org.springframework.stereotype.Service;
-
-import java.math.BigDecimal;
 import java.util.List;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.finpay.api.dto.CreatePaymentRequest;
+import com.finpay.api.model.Payment;
+import com.finpay.api.repository.PaymentRepository;
 
 @Service
 public class PaymentService {
 
+    private final PaymentRepository paymentRepository;
+
+    public PaymentService(PaymentRepository paymentRepository) {
+        this.paymentRepository = paymentRepository;
+    }
+
     public List<Payment> getAllPayments() {
-        return List.of(
-            new Payment(1L, new BigDecimal("150.00"), "PEN", "APPROVED"),
-            new Payment(2L, new BigDecimal("79.90"), "USD", "PENDING")
+        return paymentRepository.findAll();
+    }
+
+    @Transactional
+    public Payment createPayment(CreatePaymentRequest request) {
+
+        Payment payment = new Payment(
+            request.getAmount(),
+            request.getCurrency(),
+            "PENDING"
         );
+
+        return paymentRepository.save(payment);
     }
 }

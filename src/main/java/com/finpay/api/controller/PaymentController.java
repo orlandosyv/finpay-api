@@ -1,10 +1,11 @@
 package com.finpay.api.controller;
 
+import com.finpay.api.dto.CreatePaymentRequest;
 import com.finpay.api.model.Payment;
 import com.finpay.api.service.PaymentService;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -21,5 +22,11 @@ public class PaymentController {
     @GetMapping
     public List<Payment> getPayments() {
         return paymentService.getAllPayments();
+    }
+
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    public Payment createPayment(@RequestBody CreatePaymentRequest request) {
+        return paymentService.createPayment(request);
     }
 }
