@@ -10,6 +10,7 @@ import com.finpay.api.dto.CreatePaymentRequest;
 import com.finpay.api.model.Payment;
 import com.finpay.api.repository.PaymentRepository;
 import com.finpay.api.model.PaymentStatus;
+import com.finpay.api.exception.PaymentNotFoundException;
 
 @Service
 public class PaymentService {
@@ -42,10 +43,9 @@ public class PaymentService {
     @Transactional
     public Payment approvePayment(Long id) {
 
-        Payment payment = paymentRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException(
-                    "Payment with id " + id + " was not found"
-                ));
+        Payment payment = paymentRepository
+                            .findById(id)
+                            .orElseThrow(() -> new PaymentNotFoundException(id));
 
         payment.approve();
 

@@ -10,6 +10,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import com.finpay.api.exception.InvalidPaymentStatusTransitionException;
 
 @Entity
 @Table(name = "payments")
@@ -60,8 +61,9 @@ public class Payment {
 
     public void approve() {
         if (status != PaymentStatus.PENDING) {
-            throw new IllegalStateException(
-                "Only PENDING payments can be approved"
+            throw new InvalidPaymentStatusTransitionException(
+                status,
+                PaymentStatus.APPROVED
             );
         }
 
