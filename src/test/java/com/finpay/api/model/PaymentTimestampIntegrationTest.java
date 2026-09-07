@@ -8,11 +8,16 @@ import java.time.Instant;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.transaction.annotation.Transactional;
+import org.testcontainers.junit.jupiter.Testcontainers;
 
+import com.finpay.api.config.TestcontainersConfiguration;
 import com.finpay.api.repository.PaymentRepository;
 
 @SpringBootTest
+@Import(TestcontainersConfiguration.class)
+@Testcontainers(disabledWithoutDocker = true)
 @Transactional
 class PaymentTimestampIntegrationTest {
 
