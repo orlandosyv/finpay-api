@@ -1,11 +1,8 @@
 package com.finpay.api.service;
 
 import java.util.List;
-import java.util.Optional;
-
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 import com.finpay.api.dto.CreatePaymentRequest;
 import com.finpay.api.model.Payment;
 import com.finpay.api.repository.PaymentRepository;
@@ -25,8 +22,8 @@ public class PaymentService {
         return paymentRepository.findAll();
     }
 
-    public Optional<Payment> getPaymentById(Long id) {
-        return paymentRepository.findById(id);
+    public Payment getPaymentById(Long id) {
+        return findPaymentOrThrow(id);
     }
 
     @Transactional
