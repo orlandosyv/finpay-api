@@ -1,6 +1,10 @@
 package com.finpay.api.model;
 
 import java.math.BigDecimal;
+import java.time.Instant;
+
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -30,6 +34,14 @@ public class Payment {
     @Column(nullable = false, length = 20)
     private PaymentStatus status;
 
+    @CreationTimestamp
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private Instant createdAt;
+
+    @UpdateTimestamp
+    @Column(name = "updated_at", nullable = false)
+    private Instant updatedAt;
+
     protected Payment() {
         // Constructor sin parámetros requerido por JPA
     }
@@ -57,6 +69,14 @@ public class Payment {
 
     public PaymentStatus getStatus() {
         return status;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
+    public Instant getUpdatedAt() {
+        return updatedAt;
     }
 
     public void approve() {

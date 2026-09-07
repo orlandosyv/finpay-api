@@ -27,5 +27,7 @@ class PaymentMapperTest {
         assertThat(response.amount()).isEqualByComparingTo("250.00");
         assertThat(response.currency()).isEqualTo("PEN");
         assertThat(response.status()).isEqualTo(PaymentStatus.PENDING);
+        assertThat(response.createdAt()).isNull();
+        assertThat(response.updatedAt()).isNull();
     }
 }

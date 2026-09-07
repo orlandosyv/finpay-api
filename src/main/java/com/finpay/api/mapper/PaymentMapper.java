@@ -13,6 +13,8 @@ public class PaymentMapper {
                 payment.getId(),
                 payment.getAmount(),
                 payment.getCurrency(),
-                payment.getStatus());
+                payment.getStatus(),
+                payment.getCreatedAt(),
+                payment.getUpdatedAt());
     }
 }
