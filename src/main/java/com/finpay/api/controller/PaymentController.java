@@ -5,6 +5,7 @@ import com.finpay.api.model.Payment;
 import com.finpay.api.service.PaymentService;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
+import jakarta.validation.Valid;
 import java.util.List;
 
 @RestController
@@ -29,7 +30,7 @@ public class PaymentController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public Payment createPayment(@RequestBody CreatePaymentRequest request) {
+    public Payment createPayment(@Valid @RequestBody CreatePaymentRequest request) {
         return paymentService.createPayment(request);
     }
 
