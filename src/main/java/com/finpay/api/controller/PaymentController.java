@@ -6,11 +6,21 @@ import com.finpay.api.mapper.PaymentMapper;
 import com.finpay.api.service.PaymentService;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
+
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/payments")
+@Tag(name = "Payments", description = "Create payments and manage their lifecycle")
 public class PaymentController {
 
     private final PaymentService paymentService;
@@ -24,6 +34,11 @@ public class PaymentController {
     }
 
     @GetMapping
+    @Operation(summary = "List payments", description = "Returns every payment currently stored.")
+    @ApiResponse(
+            responseCode = "200",
+            description = "Payments returned successfully",
+            content = @Content(array = @ArraySchema(schema = @Schema(implementation = PaymentResponse.class))))
     public List<PaymentResponse> getPayments() {
         return paymentService.getAllPayments()
                 .stream()
@@ -32,28 +47,64 @@ public class PaymentController {
     }
 
     @GetMapping("/{id}")
-    public PaymentResponse getPaymentById(@PathVariable Long id) {
+    @Operation(summary = "Find a payment", description = "Returns one payment by its identifier.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Payment found"),
+            @ApiResponse(responseCode = "404", description = "Payment does not exist")
+    })
+    public PaymentResponse getPaymentById(
+            @Parameter(description = "Payment identifier", example = "1")
+            @PathVariable Long id) {
         return paymentMapper.toResponse(paymentService.getPaymentById(id));
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @Operation(summary = "Create a payment", description = "Creates a new payment with PENDING status.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "201", description = "Payment created"),
+            @ApiResponse(responseCode = "400", description = "Request validation failed")
+    })
     public PaymentResponse createPayment(@Valid @RequestBody CreatePaymentRequest request) {
         return paymentMapper.toResponse(paymentService.createPayment(request));
     }
 
     @PatchMapping("/{id}/approve")
-    public PaymentResponse approvePayment(@PathVariable Long id) {
+    @Operation(summary = "Approve a payment", description = "Transitions a PENDING payment to APPROVED.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Payment approved"),
+            @ApiResponse(responseCode = "404", description = "Payment does not exist"),
+            @ApiResponse(responseCode = "409", description = "Invalid status transition")
+    })
+    public PaymentResponse approvePayment(
+            @Parameter(description = "Payment identifier", example = "1")
+            @PathVariable Long id) {
         return paymentMapper.toResponse(paymentService.approvePayment(id));
     }
 
     @PatchMapping("/{id}/decline")
-    public PaymentResponse declinePayment(@PathVariable Long id) {
+    @Operation(summary = "Decline a payment", description = "Transitions a PENDING payment to DECLINED.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Payment declined"),
+            @ApiResponse(responseCode = "404", description = "Payment does not exist"),
+            @ApiResponse(responseCode = "409", description = "Invalid status transition")
+    })
+    public PaymentResponse declinePayment(
+            @Parameter(description = "Payment identifier", example = "1")
+            @PathVariable Long id) {
         return paymentMapper.toResponse(paymentService.declinePayment(id));
     }
 
     @PatchMapping("/{id}/refund")
-    public PaymentResponse refundPayment(@PathVariable Long id) {
+    @Operation(summary = "Refund a payment", description = "Transitions an APPROVED payment to REFUNDED.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Payment refunded"),
+            @ApiResponse(responseCode = "404", description = "Payment does not exist"),
+            @ApiResponse(responseCode = "409", description = "Invalid status transition")
+    })
+    public PaymentResponse refundPayment(
+            @Parameter(description = "Payment identifier", example = "1")
+            @PathVariable Long id) {
         return paymentMapper.toResponse(paymentService.refundPayment(id));
     }
 

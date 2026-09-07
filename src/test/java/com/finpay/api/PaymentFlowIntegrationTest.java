@@ -138,6 +138,23 @@ class PaymentFlowIntegrationTest {
                         .value("Payment with id " + Long.MAX_VALUE + " was not found"));
     }
 
+    @Test
+    void exposesOpenApiDocumentationAndSwaggerUi() throws Exception {
+        mockMvc.perform(get("/v3/api-docs"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.info.title").value("FinPay API"))
+                .andExpect(jsonPath("$.info.version").value("1.0.0"))
+                .andExpect(jsonPath("$.paths['/api/health']").exists())
+                .andExpect(jsonPath("$.paths['/api/payments']").exists())
+                .andExpect(jsonPath("$.paths['/api/payments/{id}']").exists())
+                .andExpect(jsonPath("$.paths['/api/payments/{id}/approve']").exists())
+                .andExpect(jsonPath("$.paths['/api/payments/{id}/decline']").exists())
+                .andExpect(jsonPath("$.paths['/api/payments/{id}/refund']").exists());
+
+        mockMvc.perform(get("/swagger-ui.html"))
+                .andExpect(status().is3xxRedirection());
+    }
+
     private void createPayment(String amount, String currency) throws Exception {
         mockMvc.perform(post("/api/payments")
                         .contentType(MediaType.APPLICATION_JSON)
