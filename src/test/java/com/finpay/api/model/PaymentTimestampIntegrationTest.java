@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import com.finpay.api.config.TestcontainersConfiguration;
+import com.finpay.api.repository.MerchantRepository;
 import com.finpay.api.repository.PaymentRepository;
 
 @SpringBootTest
@@ -24,9 +25,14 @@ class PaymentTimestampIntegrationTest {
     @Autowired
     private PaymentRepository paymentRepository;
 
+    @Autowired
+    private MerchantRepository merchantRepository;
+
     @Test
     void createsAndUpdatesPaymentTimestamps() {
+        Merchant merchant = merchantRepository.findById(1L).orElseThrow();
         Payment payment = new Payment(
+                merchant,
                 new BigDecimal("25.00"),
                 "PEN",
                 PaymentStatus.PENDING);

@@ -11,6 +11,9 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -23,6 +26,10 @@ public class Payment {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "merchant_id", nullable = false)
+    private Merchant merchant;
 
     @Column(nullable = false, precision = 19, scale = 2)
     private BigDecimal amount;
@@ -47,9 +54,11 @@ public class Payment {
     }
 
     public Payment(
+            Merchant merchant,
             BigDecimal amount,
             String currency,
             PaymentStatus status) {
+        this.merchant = merchant;
         this.amount = amount;
         this.currency = currency;
         this.status = status;
@@ -57,6 +66,10 @@ public class Payment {
 
     public Long getId() {
         return id;
+    }
+
+    public Merchant getMerchant() {
+        return merchant;
     }
 
     public BigDecimal getAmount() {

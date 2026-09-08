@@ -90,6 +90,7 @@ class PaymentTest {
 
     private Payment paymentWithStatus(PaymentStatus status) {
         return new Payment(
+                new Merchant("Test Merchant", MerchantStatus.ACTIVE),
                 new BigDecimal("100.00"),
                 "PEN",
                 status);

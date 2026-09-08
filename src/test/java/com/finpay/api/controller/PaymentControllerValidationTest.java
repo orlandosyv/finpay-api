@@ -24,6 +24,8 @@ import com.finpay.api.dto.CreatePaymentRequest;
 import com.finpay.api.exception.GlobalExceptionHandler;
 import com.finpay.api.exception.PaymentNotFoundException;
 import com.finpay.api.mapper.PaymentMapper;
+import com.finpay.api.model.Merchant;
+import com.finpay.api.model.MerchantStatus;
 import com.finpay.api.model.Payment;
 import com.finpay.api.model.PaymentStatus;
 import com.finpay.api.service.PaymentService;
@@ -50,6 +52,7 @@ class PaymentControllerValidationTest {
     @Test
     void createsPaymentWhenRequestIsValid() throws Exception {
         Payment payment = new Payment(
+                new Merchant("Test Merchant", MerchantStatus.ACTIVE),
                 new BigDecimal("250.00"),
                 "PEN",
                 PaymentStatus.PENDING);

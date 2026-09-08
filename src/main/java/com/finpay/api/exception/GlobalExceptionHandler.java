@@ -63,6 +63,23 @@ public class GlobalExceptionHandler {
                 .body(error);
     }
 
+    @ExceptionHandler(MerchantNotFoundException.class)
+    public ResponseEntity<ApiError> handleMerchantNotFound(
+            MerchantNotFoundException exception,
+            HttpServletRequest request) {
+
+        ApiError error = new ApiError(
+                Instant.now(),
+                HttpStatus.NOT_FOUND.value(),
+                HttpStatus.NOT_FOUND.getReasonPhrase(),
+                exception.getMessage(),
+                request.getRequestURI());
+
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(error);
+    }
+
     @ExceptionHandler(InvalidPaymentStatusTransitionException.class)
     public ResponseEntity<ApiError> handleInvalidTransition(
             InvalidPaymentStatusTransitionException exception,
