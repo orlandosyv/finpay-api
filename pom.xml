@@ -11,20 +11,28 @@
 	<groupId>com.finpay</groupId>
 	<artifactId>finpay-api</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name>finpay-api</name>
-	<description/>
-	<url/>
+	<name>FinPay API</name>
+	<description>Educational REST API that simulates the core lifecycle of a payment gateway.</description>
+	<url>https://github.com/orlandosyv/finpay-api</url>
 	<licenses>
-		<license/>
+		<license>
+			<name>MIT License</name>
+			<url>https://opensource.org/license/mit</url>
+			<distribution>repo</distribution>
+		</license>
 	</licenses>
 	<developers>
-		<developer/>
+		<developer>
+			<id>orlandosyv</id>
+			<name>Orlando YV</name>
+			<url>https://github.com/orlandosyv</url>
+		</developer>
 	</developers>
 	<scm>
-		<connection/>
-		<developerConnection/>
-		<tag/>
-		<url/>
+		<connection>scm:git:https://github.com/orlandosyv/finpay-api.git</connection>
+		<developerConnection>scm:git:ssh://git@github.com/orlandosyv/finpay-api.git</developerConnection>
+		<tag>HEAD</tag>
+		<url>https://github.com/orlandosyv/finpay-api</url>
 	</scm>
 	<properties>
 		<java.version>25</java.version>
