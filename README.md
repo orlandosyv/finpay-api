@@ -10,6 +10,9 @@ The project focuses on API design, validation, controlled response models, datab
 ## Features
 
 - Create and retrieve payments
+- Register a merchant with its first administrator account
+- Associate users with merchants through explicit roles
+- Store passwords as BCrypt hashes instead of plain text
 - Approve or decline pending payments
 - Refund approved payments
 - Validate amounts and ISO 4217 currency codes: USD, PEN, EUR
@@ -27,6 +30,7 @@ The project focuses on API design, validation, controlled response models, datab
 - Spring Boot 4.1.1
 - Spring Web MVC
 - Spring Data JPA and Hibernate
+- Spring Security Crypto
 - Jakarta Bean Validation
 - Microsoft SQL Server 2022
 - Flyway
@@ -53,6 +57,7 @@ Any transition outside this flow is rejected with `409 Conflict`.
 | Method | Endpoint | Description | Success status |
 | --- | --- | --- | --- |
 | `GET` | `/api/health` | Check API availability | `200 OK` |
+| `POST` | `/api/auth/register` | Register a merchant and its administrator | `201 Created` |
 | `GET` | `/api/payments` | List all payments | `200 OK` |
 | `GET` | `/api/payments/{id}` | Find a payment by ID | `200 OK` |
 | `POST` | `/api/payments` | Create a pending payment | `201 Created` |
@@ -117,6 +122,30 @@ With the application running, use the interactive documentation at:
 - OpenAPI JSON: `http://localhost:8080/v3/api-docs`
 
 Swagger UI can execute every FinPay endpoint directly from the browser.
+
+## Merchant Registration
+
+Registering a merchant creates three related records in a single transaction: the merchant, its first user, and a membership that grants that user the `MERCHANT_ADMIN` role.
+
+```bash
+curl -X POST http://localhost:8080/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"merchantName":"Tienda Andina","email":"admin@tienda.com","password":"StrongPassword123!"}'
+```
+
+Example response:
+
+```json
+{
+  "merchantId": 2,
+  "merchantName": "Tienda Andina",
+  "userId": 1,
+  "email": "admin@tienda.com",
+  "role": "MERCHANT_ADMIN"
+}
+```
+
+Emails are normalized to lowercase and must be unique. Passwords require at least 12 characters, including uppercase and lowercase letters, a number, and a special character. FinPay never returns or stores the original password.
 
 ## Usage Example
 
@@ -183,6 +212,7 @@ The test suite includes:
 - Service tests with Mockito
 - Controller and validation tests with MockMvc
 - Full payment lifecycle integration tests
+- Merchant registration and membership integration tests
 - Flyway and SQL Server integration tests with Testcontainers
 - OpenAPI and Swagger endpoint checks
 
@@ -233,14 +263,16 @@ src/test/java/com/finpay/api
 - **Flyway migrations:** schema evolution is versioned and repeatable instead of being generated automatically by Hibernate.
 - **UTC timestamps:** payment dates are stored as instants to avoid server-local timezone ambiguity.
 - **Real database tests:** Testcontainers verifies behavior against SQL Server rather than an incompatible in-memory substitute.
+- **Transactional registration:** merchant, user, and administrator membership are created atomically, so partial registrations cannot remain in the database.
+- **Password hashing:** user passwords are encoded with BCrypt and are never exposed through response DTOs.
 - **Multi-stage Docker build:** Maven compiles the application in a build image, while the final image contains only the Java runtime and packaged application.
 
 ## Roadmap
 
-The current version completes the backend foundation. Possible future additions include:
+The current version completes the backend foundation and begins the multi-merchant phase. Possible future additions include:
 
-- Authentication and authorization with JWT
-- Users and merchant accounts
+- Login, authentication, and authorization with JWT
+- Resolve the current merchant from the authenticated user
 - Webhooks and idempotency keys
 - Asynchronous messaging
 - Observability and production profiles
