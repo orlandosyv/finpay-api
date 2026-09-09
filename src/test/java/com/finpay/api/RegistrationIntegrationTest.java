@@ -63,7 +63,8 @@ class RegistrationIntegrationTest {
 
         User storedUser = userRepository.findByEmailIgnoreCase("admin@tienda.com")
                 .orElseThrow();
-        List<MerchantUser> memberships = merchantUserRepository.findAllByUserId(storedUser.getId());
+        List<MerchantUser> memberships =
+                merchantUserRepository.findAllByUserIdOrderByIdAsc(storedUser.getId());
 
         assertThat(merchantRepository.count()).isEqualTo(merchantsBefore + 1);
         assertThat(userRepository.count()).isEqualTo(usersBefore + 1);

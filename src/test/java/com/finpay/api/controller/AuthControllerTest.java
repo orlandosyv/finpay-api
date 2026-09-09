@@ -21,25 +21,31 @@ import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
 
 import com.finpay.api.dto.RegisterMerchantRequest;
 import com.finpay.api.dto.RegistrationResponse;
+import com.finpay.api.dto.LoginRequest;
+import com.finpay.api.dto.LoginResponse;
 import com.finpay.api.exception.EmailAlreadyRegisteredException;
 import com.finpay.api.exception.GlobalExceptionHandler;
+import com.finpay.api.exception.InvalidCredentialsException;
 import com.finpay.api.model.MerchantRole;
+import com.finpay.api.service.AuthenticationService;
 import com.finpay.api.service.RegistrationService;
 
 class AuthControllerTest {
 
     private RegistrationService registrationService;
+    private AuthenticationService authenticationService;
     private LocalValidatorFactoryBean validator;
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
         registrationService = mock(RegistrationService.class);
+        authenticationService = mock(AuthenticationService.class);
         validator = new LocalValidatorFactoryBean();
         validator.afterPropertiesSet();
 
         mockMvc = MockMvcBuilders
-                .standaloneSetup(new AuthController(registrationService))
+                .standaloneSetup(new AuthController(registrationService, authenticationService))
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .setValidator(validator)
                 .build();
@@ -99,7 +105,7 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.message").value("Request validation failed"))
                 .andExpect(jsonPath("$.fieldErrors").isNotEmpty());
 
-        verifyNoInteractions(registrationService);
+        verifyNoInteractions(registrationService, authenticationService);
     }
 
     @Test
@@ -122,5 +128,76 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.message")
                         .value("Email admin@tienda.com is already registered"))
                 .andExpect(jsonPath("$.path").value("/api/auth/register"));
+    }
+
+    @Test
+    void logsInAndReturnsAccessToken() throws Exception {
+        LoginResponse response = new LoginResponse(
+                "signed.jwt.token",
+                "Bearer",
+                3600,
+                10L,
+                "admin@tienda.com",
+                2L,
+                "Tienda Andina",
+                MerchantRole.MERCHANT_ADMIN);
+        when(authenticationService.login(any(LoginRequest.class))).thenReturn(response);
+
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "email": "admin@tienda.com",
+                                  "password": "StrongPassword123!"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken").value("signed.jwt.token"))
+                .andExpect(jsonPath("$.tokenType").value("Bearer"))
+                .andExpect(jsonPath("$.expiresIn").value(3600))
+                .andExpect(jsonPath("$.userId").value(10))
+                .andExpect(jsonPath("$.merchantId").value(2))
+                .andExpect(jsonPath("$.role").value("MERCHANT_ADMIN"));
+
+        verify(authenticationService).login(any(LoginRequest.class));
+    }
+
+    @Test
+    void rejectsInvalidLoginRequest() throws Exception {
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "email": "not-an-email",
+                                  "password": ""
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.message").value("Request validation failed"))
+                .andExpect(jsonPath("$.fieldErrors.email").exists())
+                .andExpect(jsonPath("$.fieldErrors.password").exists());
+
+        verifyNoInteractions(authenticationService);
+    }
+
+    @Test
+    void returnsUnauthorizedForInvalidCredentials() throws Exception {
+        when(authenticationService.login(any(LoginRequest.class)))
+                .thenThrow(new InvalidCredentialsException());
+
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "email": "admin@tienda.com",
+                                  "password": "WrongPassword123!"
+                                }
+                                """))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.status").value(401))
+                .andExpect(jsonPath("$.error").value("Unauthorized"))
+                .andExpect(jsonPath("$.message").value("Invalid email or password"))
+                .andExpect(jsonPath("$.path").value("/api/auth/login"));
     }
 }

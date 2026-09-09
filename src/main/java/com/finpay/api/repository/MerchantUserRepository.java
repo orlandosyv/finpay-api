@@ -8,5 +8,5 @@ import com.finpay.api.model.MerchantUser;
 
 public interface MerchantUserRepository extends JpaRepository<MerchantUser, Long> {
 
-    List<MerchantUser> findAllByUserId(Long userId);
+    List<MerchantUser> findAllByUserIdOrderByIdAsc(Long userId);
 }

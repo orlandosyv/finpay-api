@@ -1,6 +1,7 @@
 package com.finpay.api.controller;
 
 import com.finpay.api.dto.CreatePaymentRequest;
+import com.finpay.api.dto.ApiError;
 import com.finpay.api.dto.PaymentResponse;
 import com.finpay.api.mapper.PaymentMapper;
 import com.finpay.api.service.PaymentService;
@@ -14,6 +15,7 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -21,6 +23,11 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/payments")
 @Tag(name = "Payments", description = "Create payments and manage their lifecycle")
+@SecurityRequirement(name = "bearerAuth")
+@ApiResponse(
+        responseCode = "401",
+        description = "Authentication is required or the access token is invalid",
+        content = @Content(schema = @Schema(implementation = ApiError.class)))
 public class PaymentController {
 
     private final PaymentService paymentService;

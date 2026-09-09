@@ -9,6 +9,9 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.finpay.api.dto.RegisterMerchantRequest;
 import com.finpay.api.dto.RegistrationResponse;
+import com.finpay.api.dto.LoginRequest;
+import com.finpay.api.dto.LoginResponse;
+import com.finpay.api.service.AuthenticationService;
 import com.finpay.api.service.RegistrationService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -25,9 +28,13 @@ import jakarta.validation.Valid;
 public class AuthController {
 
     private final RegistrationService registrationService;
+    private final AuthenticationService authenticationService;
 
-    public AuthController(RegistrationService registrationService) {
+    public AuthController(
+            RegistrationService registrationService,
+            AuthenticationService authenticationService) {
         this.registrationService = registrationService;
+        this.authenticationService = authenticationService;
     }
 
     @PostMapping("/register")
@@ -46,5 +53,21 @@ public class AuthController {
     public RegistrationResponse register(
             @Valid @RequestBody RegisterMerchantRequest request) {
         return registrationService.register(request);
+    }
+
+    @PostMapping("/login")
+    @Operation(
+            summary = "Log in",
+            description = "Validates merchant credentials and returns a signed JWT access token.")
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Authentication successful",
+                    content = @Content(schema = @Schema(implementation = LoginResponse.class))),
+            @ApiResponse(responseCode = "400", description = "Request validation failed"),
+            @ApiResponse(responseCode = "401", description = "Invalid email or password")
+    })
+    public LoginResponse login(@Valid @RequestBody LoginRequest request) {
+        return authenticationService.login(request);
     }
 }

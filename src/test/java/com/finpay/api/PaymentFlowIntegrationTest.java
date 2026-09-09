@@ -6,6 +6,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
+import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 
 import java.util.List;
 
@@ -43,6 +45,11 @@ class PaymentFlowIntegrationTest {
         paymentRepository.deleteAll();
         mockMvc = MockMvcBuilders
                 .webAppContextSetup(applicationContext)
+                .defaultRequest(get("/").with(jwt().jwt(token -> token
+                        .subject("1")
+                        .claim("merchantId", 1L)
+                        .claim("roles", List.of("MERCHANT_ADMIN")))))
+                .apply(springSecurity())
                 .build();
     }
 
@@ -145,11 +152,15 @@ class PaymentFlowIntegrationTest {
                 .andExpect(jsonPath("$.info.title").value("FinPay API"))
                 .andExpect(jsonPath("$.info.version").value("1.0.0"))
                 .andExpect(jsonPath("$.paths['/api/health']").exists())
+                .andExpect(jsonPath("$.paths['/api/auth/register']").exists())
+                .andExpect(jsonPath("$.paths['/api/auth/login']").exists())
                 .andExpect(jsonPath("$.paths['/api/payments']").exists())
                 .andExpect(jsonPath("$.paths['/api/payments/{id}']").exists())
                 .andExpect(jsonPath("$.paths['/api/payments/{id}/approve']").exists())
                 .andExpect(jsonPath("$.paths['/api/payments/{id}/decline']").exists())
-                .andExpect(jsonPath("$.paths['/api/payments/{id}/refund']").exists());
+                .andExpect(jsonPath("$.paths['/api/payments/{id}/refund']").exists())
+                .andExpect(jsonPath("$.paths['/api/payments'].get.responses['401']").exists())
+                .andExpect(jsonPath("$.components.securitySchemes.bearerAuth").exists());
 
         mockMvc.perform(get("/swagger-ui.html"))
                 .andExpect(status().is3xxRedirection());

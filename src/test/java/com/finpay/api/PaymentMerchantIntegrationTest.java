@@ -4,13 +4,19 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.transaction.annotation.Transactional;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
@@ -45,6 +51,12 @@ class PaymentMerchantIntegrationTest {
     @BeforeEach
     void setUp() {
         paymentRepository.deleteAll();
+        authenticateAsMerchant(DEFAULT_MERCHANT_ID);
+    }
+
+    @AfterEach
+    void clearSecurityContext() {
+        SecurityContextHolder.clearContext();
     }
 
     @Test
@@ -99,5 +111,19 @@ class PaymentMerchantIntegrationTest {
         request.setAmount(new BigDecimal(amount));
         request.setCurrency(currency);
         return request;
+    }
+
+    private void authenticateAsMerchant(Long merchantId) {
+        Jwt jwt = Jwt.withTokenValue("integration-test-token")
+                .header("alg", "none")
+                .subject("1")
+                .issuedAt(Instant.now())
+                .expiresAt(Instant.now().plusSeconds(3600))
+                .claim("merchantId", merchantId)
+                .claim("roles", List.of("MERCHANT_ADMIN"))
+                .build();
+        SecurityContextHolder.getContext().setAuthentication(new JwtAuthenticationToken(
+                jwt,
+                List.of(new SimpleGrantedAuthority("ROLE_MERCHANT_ADMIN"))));
     }
 }

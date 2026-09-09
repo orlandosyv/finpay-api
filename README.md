@@ -13,10 +13,12 @@ The project focuses on API design, validation, controlled response models, datab
 - Register a merchant with its first administrator account
 - Associate users with merchants through explicit roles
 - Store passwords as BCrypt hashes instead of plain text
+- Authenticate users with signed, one-hour JWT access tokens
+- Isolate payment data by the authenticated merchant
 - Approve or decline pending payments
 - Refund approved payments
 - Validate amounts and ISO 4217 currency codes: USD, PEN, EUR
-- Return consistent `400`, `404`, and `409` error responses
+- Return consistent `400`, `401`, `404`, and `409` error responses
 - Expose DTOs instead of persistence entities
 - Store creation and update timestamps in UTC
 - Manage the database schema with versioned Flyway migrations
@@ -30,7 +32,7 @@ The project focuses on API design, validation, controlled response models, datab
 - Spring Boot 4.1.1
 - Spring Web MVC
 - Spring Data JPA and Hibernate
-- Spring Security Crypto
+- Spring Security and OAuth2 Resource Server
 - Jakarta Bean Validation
 - Microsoft SQL Server 2022
 - Flyway
@@ -58,6 +60,7 @@ Any transition outside this flow is rejected with `409 Conflict`.
 | --- | --- | --- | --- |
 | `GET` | `/api/health` | Check API availability | `200 OK` |
 | `POST` | `/api/auth/register` | Register a merchant and its administrator | `201 Created` |
+| `POST` | `/api/auth/login` | Authenticate and obtain a JWT access token | `200 OK` |
 | `GET` | `/api/payments` | List all payments | `200 OK` |
 | `GET` | `/api/payments/{id}` | Find a payment by ID | `200 OK` |
 | `POST` | `/api/payments` | Create a pending payment | `201 Created` |
@@ -82,7 +85,17 @@ Create your local environment file from the provided template:
 Copy-Item .env.example .env
 ```
 
-Open `.env` and replace the example database password with a strong local password. Never commit this file.
+Open `.env` and replace the example database password with a strong local password. Then generate a 256-bit JWT signing key in PowerShell:
+
+```powershell
+$bytes = New-Object byte[] 32
+$generator = [Security.Cryptography.RandomNumberGenerator]::Create()
+$generator.GetBytes($bytes)
+$generator.Dispose()
+[Convert]::ToBase64String($bytes)
+```
+
+Copy the generated value into `FINPAY_JWT_SECRET`. Never commit the `.env` file.
 
 Build and start the services:
 
@@ -121,7 +134,7 @@ With the application running, use the interactive documentation at:
 - Swagger UI: `http://localhost:8080/swagger-ui.html`
 - OpenAPI JSON: `http://localhost:8080/v3/api-docs`
 
-Swagger UI can execute every FinPay endpoint directly from the browser.
+Swagger UI can execute every FinPay endpoint directly from the browser. Register and log in first, copy the returned `accessToken`, select **Authorize**, and paste the token. Swagger adds the `Bearer` prefix automatically.
 
 ## Merchant Registration
 
@@ -147,6 +160,16 @@ Example response:
 
 Emails are normalized to lowercase and must be unique. Passwords require at least 12 characters, including uppercase and lowercase letters, a number, and a special character. FinPay never returns or stores the original password.
 
+Log in with the registered credentials:
+
+```bash
+curl -X POST http://localhost:8080/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@tienda.com","password":"StrongPassword123!"}'
+```
+
+The response contains a signed JWT access token, the expiration in seconds, the user identity, the merchant context, and the assigned role. Payment endpoints require this token in the `Authorization` header.
+
 ## Usage Example
 
 Create a payment:
@@ -154,6 +177,7 @@ Create a payment:
 ```bash
 curl -X POST http://localhost:8080/api/payments \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <access-token>" \
   -d '{"amount":125.50,"currency":"PEN"}'
 ```
 
@@ -173,8 +197,10 @@ Example response:
 Approve and then refund the payment:
 
 ```bash
-curl -X PATCH http://localhost:8080/api/payments/1/approve
-curl -X PATCH http://localhost:8080/api/payments/1/refund
+curl -X PATCH http://localhost:8080/api/payments/1/approve \
+  -H "Authorization: Bearer <access-token>"
+curl -X PATCH http://localhost:8080/api/payments/1/refund \
+  -H "Authorization: Bearer <access-token>"
 ```
 
 ## Validation and Error Responses
@@ -195,7 +221,17 @@ Invalid input produces a structured `400 Bad Request` response:
 }
 ```
 
-Missing payments return `404 Not Found`, while invalid lifecycle transitions return `409 Conflict`.
+Missing or invalid tokens return a structured `401 Unauthorized` response. Missing payments return `404 Not Found`, while invalid lifecycle transitions return `409 Conflict`.
+
+```json
+{
+  "timestamp": "2026-09-09T18:00:00Z",
+  "status": 401,
+  "error": "Unauthorized",
+  "message": "Authentication is required or the access token is invalid",
+  "path": "/api/payments"
+}
+```
 
 ## Running the Tests
 
@@ -213,6 +249,7 @@ The test suite includes:
 - Controller and validation tests with MockMvc
 - Full payment lifecycle integration tests
 - Merchant registration and membership integration tests
+- JWT signature, login, protected endpoint, and tenant-isolation tests
 - Flyway and SQL Server integration tests with Testcontainers
 - OpenAPI and Swagger endpoint checks
 
@@ -225,6 +262,11 @@ To run the API directly from PowerShell, first create a local SQL Server databas
 ```powershell
 $env:FINPAY_DB_USERNAME="sa"
 $env:FINPAY_DB_PASSWORD="your-local-password"
+$bytes = New-Object byte[] 32
+$generator = [Security.Cryptography.RandomNumberGenerator]::Create()
+$generator.GetBytes($bytes)
+$generator.Dispose()
+$env:FINPAY_JWT_SECRET=[Convert]::ToBase64String($bytes)
 .\mvnw.cmd spring-boot:run
 ```
 
@@ -234,7 +276,8 @@ The default local JDBC configuration connects to SQL Server at `127.0.0.1:1433`.
 
 ```text
 src/main/java/com/finpay/api
-|-- config/       OpenAPI configuration
+|-- config/       OpenAPI, password, JWT, and security configuration
+|-- context/      Authenticated merchant resolution
 |-- controller/   REST endpoints
 |-- dto/          Request and response contracts
 |-- exception/    Domain exceptions and centralized error handling
@@ -265,14 +308,16 @@ src/test/java/com/finpay/api
 - **Real database tests:** Testcontainers verifies behavior against SQL Server rather than an incompatible in-memory substitute.
 - **Transactional registration:** merchant, user, and administrator membership are created atomically, so partial registrations cannot remain in the database.
 - **Password hashing:** user passwords are encoded with BCrypt and are never exposed through response DTOs.
+- **Stateless authentication:** Spring Security validates a signed JWT on every protected request without storing HTTP sessions.
+- **Tenant isolation:** the current merchant comes from the validated token, and payment queries always filter by `merchant_id`.
 - **Multi-stage Docker build:** Maven compiles the application in a build image, while the final image contains only the Java runtime and packaged application.
 
 ## Roadmap
 
 The current version completes the backend foundation and begins the multi-merchant phase. Possible future additions include:
 
-- Login, authentication, and authorization with JWT
-- Resolve the current merchant from the authenticated user
+- Refresh tokens and token revocation
+- Merchant user invitations and role-protected administration
 - Webhooks and idempotency keys
 - Asynchronous messaging
 - Observability and production profiles
