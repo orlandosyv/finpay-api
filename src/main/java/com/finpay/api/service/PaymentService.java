@@ -1,6 +1,7 @@
 package com.finpay.api.service;
 
 import java.util.List;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.finpay.api.context.CurrentMerchantProvider;
@@ -29,16 +30,19 @@ public class PaymentService {
         this.currentMerchantProvider = currentMerchantProvider;
     }
 
+    @PreAuthorize("hasAnyRole('MERCHANT_ADMIN', 'MERCHANT_USER')")
     @Transactional(readOnly = true)
     public List<Payment> getAllPayments() {
         return paymentRepository.findAllByMerchantId(currentMerchantId());
     }
 
+    @PreAuthorize("hasAnyRole('MERCHANT_ADMIN', 'MERCHANT_USER')")
     @Transactional(readOnly = true)
     public Payment getPaymentById(Long id) {
         return findPaymentOrThrow(id);
     }
 
+    @PreAuthorize("hasAnyRole('MERCHANT_ADMIN', 'MERCHANT_USER')")
     @Transactional
     public Payment createPayment(CreatePaymentRequest request) {
         Long merchantId = currentMerchantId();
@@ -54,6 +58,7 @@ public class PaymentService {
         return paymentRepository.save(payment);
     }
 
+    @PreAuthorize("hasRole('MERCHANT_ADMIN')")
     @Transactional
     public Payment approvePayment(Long id) {
         Payment payment = findPaymentOrThrow(id);
@@ -63,6 +68,7 @@ public class PaymentService {
         return paymentRepository.save(payment);
     }
 
+    @PreAuthorize("hasRole('MERCHANT_ADMIN')")
     @Transactional
     public Payment declinePayment(Long id) {
         Payment payment = findPaymentOrThrow(id);
@@ -72,6 +78,7 @@ public class PaymentService {
         return paymentRepository.save(payment);
     }
 
+    @PreAuthorize("hasRole('MERCHANT_ADMIN')")
     @Transactional
     public Payment refundPayment(Long id) {
         Payment payment = findPaymentOrThrow(id);

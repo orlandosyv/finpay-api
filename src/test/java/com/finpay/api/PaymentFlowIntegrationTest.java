@@ -17,6 +17,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
@@ -48,7 +49,8 @@ class PaymentFlowIntegrationTest {
                 .defaultRequest(get("/").with(jwt().jwt(token -> token
                         .subject("1")
                         .claim("merchantId", 1L)
-                        .claim("roles", List.of("MERCHANT_ADMIN")))))
+                        .claim("roles", List.of("MERCHANT_ADMIN")))
+                        .authorities(new SimpleGrantedAuthority("ROLE_MERCHANT_ADMIN"))))
                 .apply(springSecurity())
                 .build();
     }
@@ -154,12 +156,15 @@ class PaymentFlowIntegrationTest {
                 .andExpect(jsonPath("$.paths['/api/health']").exists())
                 .andExpect(jsonPath("$.paths['/api/auth/register']").exists())
                 .andExpect(jsonPath("$.paths['/api/auth/login']").exists())
+                .andExpect(jsonPath("$.paths['/api/merchant/me']").exists())
+                .andExpect(jsonPath("$.paths['/api/merchant/users']").exists())
                 .andExpect(jsonPath("$.paths['/api/payments']").exists())
                 .andExpect(jsonPath("$.paths['/api/payments/{id}']").exists())
                 .andExpect(jsonPath("$.paths['/api/payments/{id}/approve']").exists())
                 .andExpect(jsonPath("$.paths['/api/payments/{id}/decline']").exists())
                 .andExpect(jsonPath("$.paths['/api/payments/{id}/refund']").exists())
                 .andExpect(jsonPath("$.paths['/api/payments'].get.responses['401']").exists())
+                .andExpect(jsonPath("$.paths['/api/payments'].get.responses['403']").exists())
                 .andExpect(jsonPath("$.components.securitySchemes.bearerAuth").exists());
 
         mockMvc.perform(get("/swagger-ui.html"))

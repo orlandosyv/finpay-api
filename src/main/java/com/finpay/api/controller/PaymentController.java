@@ -28,6 +28,10 @@ import java.util.List;
         responseCode = "401",
         description = "Authentication is required or the access token is invalid",
         content = @Content(schema = @Schema(implementation = ApiError.class)))
+@ApiResponse(
+        responseCode = "403",
+        description = "The authenticated role is not allowed to perform this operation",
+        content = @Content(schema = @Schema(implementation = ApiError.class)))
 public class PaymentController {
 
     private final PaymentService paymentService;
@@ -41,7 +45,9 @@ public class PaymentController {
     }
 
     @GetMapping
-    @Operation(summary = "List payments", description = "Returns every payment currently stored.")
+    @Operation(
+            summary = "List payments",
+            description = "Returns payments owned by the authenticated merchant. Available to both merchant roles.")
     @ApiResponse(
             responseCode = "200",
             description = "Payments returned successfully",
@@ -54,7 +60,9 @@ public class PaymentController {
     }
 
     @GetMapping("/{id}")
-    @Operation(summary = "Find a payment", description = "Returns one payment by its identifier.")
+    @Operation(
+            summary = "Find a payment",
+            description = "Returns one payment owned by the authenticated merchant. Available to both merchant roles.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Payment found"),
             @ApiResponse(responseCode = "404", description = "Payment does not exist")
@@ -67,7 +75,9 @@ public class PaymentController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    @Operation(summary = "Create a payment", description = "Creates a new payment with PENDING status.")
+    @Operation(
+            summary = "Create a payment",
+            description = "Creates a PENDING payment for the authenticated merchant. Available to both merchant roles.")
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Payment created"),
             @ApiResponse(responseCode = "400", description = "Request validation failed")
@@ -77,7 +87,9 @@ public class PaymentController {
     }
 
     @PatchMapping("/{id}/approve")
-    @Operation(summary = "Approve a payment", description = "Transitions a PENDING payment to APPROVED.")
+    @Operation(
+            summary = "Approve a payment",
+            description = "Transitions a PENDING payment to APPROVED. Available only to MERCHANT_ADMIN.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Payment approved"),
             @ApiResponse(responseCode = "404", description = "Payment does not exist"),
@@ -90,7 +102,9 @@ public class PaymentController {
     }
 
     @PatchMapping("/{id}/decline")
-    @Operation(summary = "Decline a payment", description = "Transitions a PENDING payment to DECLINED.")
+    @Operation(
+            summary = "Decline a payment",
+            description = "Transitions a PENDING payment to DECLINED. Available only to MERCHANT_ADMIN.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Payment declined"),
             @ApiResponse(responseCode = "404", description = "Payment does not exist"),
@@ -103,7 +117,9 @@ public class PaymentController {
     }
 
     @PatchMapping("/{id}/refund")
-    @Operation(summary = "Refund a payment", description = "Transitions an APPROVED payment to REFUNDED.")
+    @Operation(
+            summary = "Refund a payment",
+            description = "Transitions an APPROVED payment to REFUNDED. Available only to MERCHANT_ADMIN.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Payment refunded"),
             @ApiResponse(responseCode = "404", description = "Payment does not exist"),

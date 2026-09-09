@@ -14,11 +14,14 @@ The project focuses on API design, validation, controlled response models, datab
 - Associate users with merchants through explicit roles
 - Store passwords as BCrypt hashes instead of plain text
 - Authenticate users with signed, one-hour JWT access tokens
+- Authorize operations with `MERCHANT_ADMIN` and `MERCHANT_USER` roles
+- Let administrators create and list users in their own merchant
+- Expose the authenticated user and merchant context
 - Isolate payment data by the authenticated merchant
 - Approve or decline pending payments
 - Refund approved payments
 - Validate amounts and ISO 4217 currency codes: USD, PEN, EUR
-- Return consistent `400`, `401`, `404`, and `409` error responses
+- Return consistent `400`, `401`, `403`, `404`, and `409` error responses
 - Expose DTOs instead of persistence entities
 - Store creation and update timestamps in UTC
 - Manage the database schema with versioned Flyway migrations
@@ -56,17 +59,20 @@ Any transition outside this flow is rejected with `409 Conflict`.
 
 ## API Endpoints
 
-| Method | Endpoint | Description | Success status |
-| --- | --- | --- | --- |
-| `GET` | `/api/health` | Check API availability | `200 OK` |
-| `POST` | `/api/auth/register` | Register a merchant and its administrator | `201 Created` |
-| `POST` | `/api/auth/login` | Authenticate and obtain a JWT access token | `200 OK` |
-| `GET` | `/api/payments` | List all payments | `200 OK` |
-| `GET` | `/api/payments/{id}` | Find a payment by ID | `200 OK` |
-| `POST` | `/api/payments` | Create a pending payment | `201 Created` |
-| `PATCH` | `/api/payments/{id}/approve` | Approve a pending payment | `200 OK` |
-| `PATCH` | `/api/payments/{id}/decline` | Decline a pending payment | `200 OK` |
-| `PATCH` | `/api/payments/{id}/refund` | Refund an approved payment | `200 OK` |
+| Method | Endpoint | Description | Required role | Success status |
+| --- | --- | --- | --- | --- |
+| `GET` | `/api/health` | Check API availability | Public | `200 OK` |
+| `POST` | `/api/auth/register` | Register a merchant and its administrator | Public | `201 Created` |
+| `POST` | `/api/auth/login` | Authenticate and obtain a JWT access token | Public | `200 OK` |
+| `GET` | `/api/merchant/me` | Get the authenticated user and merchant context | Either merchant role | `200 OK` |
+| `GET` | `/api/merchant/users` | List users from the authenticated merchant | `MERCHANT_ADMIN` | `200 OK` |
+| `POST` | `/api/merchant/users` | Create a user in the authenticated merchant | `MERCHANT_ADMIN` | `201 Created` |
+| `GET` | `/api/payments` | List merchant payments | Either merchant role | `200 OK` |
+| `GET` | `/api/payments/{id}` | Find a merchant payment by ID | Either merchant role | `200 OK` |
+| `POST` | `/api/payments` | Create a pending payment | Either merchant role | `201 Created` |
+| `PATCH` | `/api/payments/{id}/approve` | Approve a pending payment | `MERCHANT_ADMIN` | `200 OK` |
+| `PATCH` | `/api/payments/{id}/decline` | Decline a pending payment | `MERCHANT_ADMIN` | `200 OK` |
+| `PATCH` | `/api/payments/{id}/refund` | Refund an approved payment | `MERCHANT_ADMIN` | `200 OK` |
 
 ## Running with Docker
 
@@ -170,6 +176,31 @@ curl -X POST http://localhost:8080/api/auth/login \
 
 The response contains a signed JWT access token, the expiration in seconds, the user identity, the merchant context, and the assigned role. Payment endpoints require this token in the `Authorization` header.
 
+## Role-Based Authorization
+
+FinPay uses role-based access control (RBAC) after JWT authentication. Both roles can view the current merchant context and create or retrieve payments. Only `MERCHANT_ADMIN` can approve, decline, or refund payments and manage the merchant team.
+
+An administrator can create an operator without sending a `merchantId`. The API obtains the merchant identifier from the validated JWT, which prevents the client from adding users to another merchant.
+
+```bash
+curl -X POST http://localhost:8080/api/merchant/users \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <admin-access-token>" \
+  -d '{"email":"operator@tienda.com","password":"OperatorPassword123!","role":"MERCHANT_USER"}'
+```
+
+The new user can log in through `/api/auth/login` and receives a JWT containing its own user, merchant, and role claims. An operator attempting an administrator-only operation receives `403 Forbidden`.
+
+```json
+{
+  "timestamp": "2026-09-09T20:00:00Z",
+  "status": 403,
+  "error": "Forbidden",
+  "message": "You do not have permission to access this resource",
+  "path": "/api/payments/1/approve"
+}
+```
+
 ## Usage Example
 
 Create a payment:
@@ -250,6 +281,7 @@ The test suite includes:
 - Full payment lifecycle integration tests
 - Merchant registration and membership integration tests
 - JWT signature, login, protected endpoint, and tenant-isolation tests
+- Role authorization, merchant team management, and forbidden-operation tests
 - Flyway and SQL Server integration tests with Testcontainers
 - OpenAPI and Swagger endpoint checks
 
@@ -309,7 +341,9 @@ src/test/java/com/finpay/api
 - **Transactional registration:** merchant, user, and administrator membership are created atomically, so partial registrations cannot remain in the database.
 - **Password hashing:** user passwords are encoded with BCrypt and are never exposed through response DTOs.
 - **Stateless authentication:** Spring Security validates a signed JWT on every protected request without storing HTTP sessions.
-- **Tenant isolation:** the current merchant comes from the validated token, and payment queries always filter by `merchant_id`.
+- **Role-based authorization:** service methods use `@PreAuthorize` so sensitive business operations require `MERCHANT_ADMIN`, while operators receive only the permissions they need.
+- **Tenant isolation:** the current merchant comes from the validated token, and payment and membership queries always filter by `merchant_id`.
+- **Server-controlled membership:** merchant administration requests never accept a `merchantId`; users are always created inside the authenticated administrator's merchant.
 - **Multi-stage Docker build:** Maven compiles the application in a build image, while the final image contains only the Java runtime and packaged application.
 
 ## Roadmap
@@ -317,7 +351,7 @@ src/test/java/com/finpay/api
 The current version completes the backend foundation and begins the multi-merchant phase. Possible future additions include:
 
 - Refresh tokens and token revocation
-- Merchant user invitations and role-protected administration
+- Invitation-based onboarding and password setup for merchant users
 - Webhooks and idempotency keys
 - Asynchronous messaging
 - Observability and production profiles
