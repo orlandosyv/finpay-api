@@ -170,8 +170,10 @@ class AuthenticationFlowIntegrationTest {
                                 """.formatted(email, password)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.tokenType").value("Bearer"))
-                .andExpect(jsonPath("$.expiresIn").value(3600))
+                .andExpect(jsonPath("$.expiresIn").value(900))
                 .andExpect(jsonPath("$.accessToken").isNotEmpty())
+                .andExpect(jsonPath("$.refreshToken").isNotEmpty())
+                .andExpect(jsonPath("$.refreshExpiresIn").value(604800))
                 .andReturn();
 
         return JsonPath.read(result.getResponse().getContentAsString(), "$.accessToken");

@@ -11,6 +11,8 @@ import com.finpay.api.dto.RegisterMerchantRequest;
 import com.finpay.api.dto.RegistrationResponse;
 import com.finpay.api.dto.LoginRequest;
 import com.finpay.api.dto.LoginResponse;
+import com.finpay.api.dto.LogoutRequest;
+import com.finpay.api.dto.RefreshTokenRequest;
 import com.finpay.api.service.AuthenticationService;
 import com.finpay.api.service.RegistrationService;
 
@@ -19,6 +21,7 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 
@@ -69,5 +72,36 @@ public class AuthController {
     })
     public LoginResponse login(@Valid @RequestBody LoginRequest request) {
         return authenticationService.login(request);
+    }
+
+    @PostMapping("/refresh")
+    @Operation(
+            summary = "Refresh an authentication session",
+            description = "Consumes a refresh token once and returns a rotated token pair.")
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Tokens rotated successfully",
+                    content = @Content(schema = @Schema(implementation = LoginResponse.class))),
+            @ApiResponse(responseCode = "400", description = "Request validation failed"),
+            @ApiResponse(responseCode = "401", description = "Refresh token is invalid or expired")
+    })
+    public LoginResponse refresh(@Valid @RequestBody RefreshTokenRequest request) {
+        return authenticationService.refresh(request);
+    }
+
+    @PostMapping("/logout")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @SecurityRequirement(name = "bearerAuth")
+    @Operation(
+            summary = "Log out",
+            description = "Revokes the current access token and its refresh token in Redis.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Session closed"),
+            @ApiResponse(responseCode = "400", description = "Request validation failed"),
+            @ApiResponse(responseCode = "401", description = "Access token is missing or invalid")
+    })
+    public void logout(@Valid @RequestBody LogoutRequest request) {
+        authenticationService.logout(request);
     }
 }

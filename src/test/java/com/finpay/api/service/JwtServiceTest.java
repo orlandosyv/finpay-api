@@ -35,7 +35,7 @@ class JwtServiceTest {
         NimbusJwtDecoder decoder = NimbusJwtDecoder.withSecretKey(secretKey)
                 .macAlgorithm(MacAlgorithm.HS256)
                 .build();
-        JwtService jwtService = new JwtService(encoder, "https://finpay.local", Duration.ofHours(1));
+        JwtService jwtService = new JwtService(encoder, "https://finpay.local", Duration.ofMinutes(15));
         User user = new User("admin@tienda.com", "hash", UserStatus.ACTIVE);
         Merchant merchant = new Merchant("Tienda Andina", MerchantStatus.ACTIVE);
         ReflectionTestUtils.setField(user, "id", 10L);
@@ -57,6 +57,6 @@ class JwtServiceTest {
         assertThat(token.getIssuedAt()).isAfterOrEqualTo(
                 beforeCreation.truncatedTo(ChronoUnit.SECONDS));
         assertThat(token.getExpiresAt()).isAfter(token.getIssuedAt());
-        assertThat(jwtService.getAccessTokenTtlSeconds()).isEqualTo(3600);
+        assertThat(jwtService.getAccessTokenTtlSeconds()).isEqualTo(900);
     }
 }

@@ -64,6 +64,7 @@ class JwtCurrentUserProviderTest {
                 .issuedAt(Instant.now())
                 .expiresAt(Instant.now().plusSeconds(3600))
                 .claim("merchantId", merchantId)
+                .claim("jti", "test-token-id")
                 .claim("roles", roles);
         if (email != null) {
             jwtBuilder.claim("email", email);

@@ -134,8 +134,10 @@ class AuthControllerTest {
     void logsInAndReturnsAccessToken() throws Exception {
         LoginResponse response = new LoginResponse(
                 "signed.jwt.token",
+                "opaque-refresh-token",
                 "Bearer",
-                3600,
+                900,
+                604800,
                 10L,
                 "admin@tienda.com",
                 2L,
@@ -153,8 +155,10 @@ class AuthControllerTest {
                                 """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.accessToken").value("signed.jwt.token"))
+                .andExpect(jsonPath("$.refreshToken").value("opaque-refresh-token"))
                 .andExpect(jsonPath("$.tokenType").value("Bearer"))
-                .andExpect(jsonPath("$.expiresIn").value(3600))
+                .andExpect(jsonPath("$.expiresIn").value(900))
+                .andExpect(jsonPath("$.refreshExpiresIn").value(604800))
                 .andExpect(jsonPath("$.userId").value(10))
                 .andExpect(jsonPath("$.merchantId").value(2))
                 .andExpect(jsonPath("$.role").value("MERCHANT_ADMIN"));

@@ -13,7 +13,8 @@ The project focuses on API design, validation, controlled response models, datab
 - Register a merchant with its first administrator account
 - Associate users with merchants through explicit roles
 - Store passwords as BCrypt hashes instead of plain text
-- Authenticate users with signed, one-hour JWT access tokens
+- Authenticate users with signed, short-lived JWT access tokens
+- Rotate refresh tokens and revoke sessions with Redis
 - Authorize operations with `MERCHANT_ADMIN` and `MERCHANT_USER` roles
 - Let administrators create and list users in their own merchant
 - Expose the authenticated user and merchant context
@@ -26,8 +27,8 @@ The project focuses on API design, validation, controlled response models, datab
 - Store creation and update timestamps in UTC
 - Manage the database schema with versioned Flyway migrations
 - Document and test endpoints through Swagger UI
-- Run integration tests against a real SQL Server container
-- Start the API and database together with Docker Compose
+- Run integration tests against real SQL Server and Redis containers
+- Start the API, SQL Server, and Redis together with Docker Compose
 
 ## Technology Stack
 
@@ -38,6 +39,7 @@ The project focuses on API design, validation, controlled response models, datab
 - Spring Security and OAuth2 Resource Server
 - Jakarta Bean Validation
 - Microsoft SQL Server 2022
+- Redis 7.4
 - Flyway
 - JUnit, Mockito, MockMvc, and AssertJ
 - Testcontainers
@@ -64,6 +66,8 @@ Any transition outside this flow is rejected with `409 Conflict`.
 | `GET` | `/api/health` | Check API availability | Public | `200 OK` |
 | `POST` | `/api/auth/register` | Register a merchant and its administrator | Public | `201 Created` |
 | `POST` | `/api/auth/login` | Authenticate and obtain a JWT access token | Public | `200 OK` |
+| `POST` | `/api/auth/refresh` | Rotate a refresh token and obtain a new token pair | Public | `200 OK` |
+| `POST` | `/api/auth/logout` | Revoke the current session | Either merchant role | `204 No Content` |
 | `GET` | `/api/merchant/me` | Get the authenticated user and merchant context | Either merchant role | `200 OK` |
 | `GET` | `/api/merchant/users` | List users from the authenticated merchant | `MERCHANT_ADMIN` | `200 OK` |
 | `POST` | `/api/merchant/users` | Create a user in the authenticated merchant | `MERCHANT_ADMIN` | `201 Created` |
@@ -76,12 +80,12 @@ Any transition outside this flow is rejected with `409 Conflict`.
 
 ## Running with Docker
 
-This is the recommended way to run FinPay because it requires only Docker Desktop. Docker Compose starts SQL Server, creates the `finpay_db` database, applies the Flyway migrations, and then starts the API.
+This is the recommended way to run FinPay because it requires only Docker Desktop. Docker Compose starts SQL Server and Redis, creates the `finpay_db` database, applies the Flyway migrations, and then starts the API.
 
 ### Requirements
 
 - Docker Desktop with the Docker engine running
-- Available ports `8080` and `1434`, or different ports configured in `.env`
+- Available ports `8080`, `1434`, and `6379`, or different ports configured in `.env`
 
 ### Start the application
 
@@ -115,7 +119,7 @@ Check their status:
 docker compose ps
 ```
 
-The API is available at `http://localhost:8080` and SQL Server is exposed on host port `1434`.
+The API is available at `http://localhost:8080`, SQL Server is exposed on host port `1434`, and Redis is exposed on host port `6379`.
 
 The `sqlserver-init` container is a one-time initialization service. Seeing it with an `Exited (0)` status is expected and means that database creation completed successfully.
 
@@ -127,7 +131,7 @@ Stop and remove the containers while preserving database data:
 docker compose down
 ```
 
-To also delete the SQL Server volume and all stored payments:
+To also delete the SQL Server and Redis volumes, including all stored payments and active authentication sessions:
 
 ```powershell
 docker compose down -v
@@ -174,7 +178,32 @@ curl -X POST http://localhost:8080/api/auth/login \
   -d '{"email":"admin@tienda.com","password":"StrongPassword123!"}'
 ```
 
-The response contains a signed JWT access token, the expiration in seconds, the user identity, the merchant context, and the assigned role. Payment endpoints require this token in the `Authorization` header.
+The response contains a signed JWT access token, an opaque refresh token, both expiration periods, the user identity, the merchant context, and the assigned role. Payment endpoints require the access token in the `Authorization` header.
+
+## Token Lifecycle and Logout
+
+Access tokens expire after 15 minutes. Refresh tokens expire after seven days and are stored in Redis only as SHA-256 hashes. The original refresh token is returned to the client and must be protected like a password.
+
+Use the current refresh token to obtain a new token pair:
+
+```bash
+curl -X POST http://localhost:8080/api/auth/refresh \
+  -H "Content-Type: application/json" \
+  -d '{"refreshToken":"<current-refresh-token>"}'
+```
+
+Refresh tokens are rotated: a successful refresh consumes the submitted token and returns a new one. Reusing the old token produces `401 Unauthorized`.
+
+Log out with the current access token and latest refresh token:
+
+```bash
+curl -X POST http://localhost:8080/api/auth/logout \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <current-access-token>" \
+  -d '{"refreshToken":"<current-refresh-token>"}'
+```
+
+Logout removes the refresh session and stores the JWT identifier in Redis until the access token would naturally expire. This makes both tokens unusable immediately.
 
 ## Role-Based Authorization
 
@@ -282,14 +311,15 @@ The test suite includes:
 - Merchant registration and membership integration tests
 - JWT signature, login, protected endpoint, and tenant-isolation tests
 - Role authorization, merchant team management, and forbidden-operation tests
+- Refresh-token rotation, reuse prevention, logout, and access-token revocation tests
 - Flyway and SQL Server integration tests with Testcontainers
 - OpenAPI and Swagger endpoint checks
 
-Testcontainers creates an isolated SQL Server instance for integration tests and removes it when the test run finishes. No permanent test database is required.
+Testcontainers creates isolated SQL Server and Redis instances for integration tests and removes them when the test run finishes. No permanent test database or Redis instance is required.
 
 ## Running without Docker Compose
 
-To run the API directly from PowerShell, first create a local SQL Server database named `finpay_db` and provide its credentials:
+To run the API directly from PowerShell, first create a local SQL Server database named `finpay_db`, start Redis on port `6379`, and provide the database credentials:
 
 ```powershell
 $env:FINPAY_DB_USERNAME="sa"
@@ -341,6 +371,9 @@ src/test/java/com/finpay/api
 - **Transactional registration:** merchant, user, and administrator membership are created atomically, so partial registrations cannot remain in the database.
 - **Password hashing:** user passwords are encoded with BCrypt and are never exposed through response DTOs.
 - **Stateless authentication:** Spring Security validates a signed JWT on every protected request without storing HTTP sessions.
+- **Short-lived credentials:** access tokens expire after 15 minutes, limiting the useful lifetime of a leaked JWT.
+- **Refresh-token rotation:** every refresh token is single-use and only its SHA-256 hash is retained in Redis.
+- **Immediate logout:** revoked JWT identifiers remain in Redis only until their original expiration time.
 - **Role-based authorization:** service methods use `@PreAuthorize` so sensitive business operations require `MERCHANT_ADMIN`, while operators receive only the permissions they need.
 - **Tenant isolation:** the current merchant comes from the validated token, and payment and membership queries always filter by `merchant_id`.
 - **Server-controlled membership:** merchant administration requests never accept a `merchantId`; users are always created inside the authenticated administrator's merchant.
@@ -350,7 +383,6 @@ src/test/java/com/finpay/api
 
 The current version completes the backend foundation and begins the multi-merchant phase. Possible future additions include:
 
-- Refresh tokens and token revocation
 - Invitation-based onboarding and password setup for merchant users
 - Webhooks and idempotency keys
 - Asynchronous messaging

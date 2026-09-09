@@ -17,6 +17,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import com.finpay.api.context.CurrentUserProvider;
 import com.finpay.api.dto.LoginRequest;
 import com.finpay.api.dto.LoginResponse;
 import com.finpay.api.exception.InvalidCredentialsException;
@@ -28,6 +29,7 @@ import com.finpay.api.model.User;
 import com.finpay.api.model.UserStatus;
 import com.finpay.api.repository.MerchantUserRepository;
 import com.finpay.api.repository.UserRepository;
+import com.finpay.api.security.IssuedRefreshToken;
 
 @ExtendWith(MockitoExtension.class)
 class AuthenticationServiceTest {
@@ -43,6 +45,12 @@ class AuthenticationServiceTest {
 
     @Mock
     private JwtService jwtService;
+
+    @Mock
+    private TokenSessionService tokenSessionService;
+
+    @Mock
+    private CurrentUserProvider currentUserProvider;
 
     @InjectMocks
     private AuthenticationService authenticationService;
@@ -65,13 +73,17 @@ class AuthenticationServiceTest {
                 .thenReturn(List.of(membership));
         when(jwtService.createAccessToken(user, merchant, MerchantRole.MERCHANT_ADMIN))
                 .thenReturn("signed.jwt.token");
-        when(jwtService.getAccessTokenTtlSeconds()).thenReturn(3600L);
+        when(jwtService.getAccessTokenTtlSeconds()).thenReturn(900L);
+        when(tokenSessionService.createRefreshToken(10L, 2L))
+                .thenReturn(new IssuedRefreshToken("opaque-refresh-token", 604800L));
 
         LoginResponse response = authenticationService.login(request);
 
         assertThat(response.accessToken()).isEqualTo("signed.jwt.token");
+        assertThat(response.refreshToken()).isEqualTo("opaque-refresh-token");
         assertThat(response.tokenType()).isEqualTo("Bearer");
-        assertThat(response.expiresIn()).isEqualTo(3600);
+        assertThat(response.expiresIn()).isEqualTo(900);
+        assertThat(response.refreshExpiresIn()).isEqualTo(604800);
         assertThat(response.userId()).isEqualTo(10L);
         assertThat(response.email()).isEqualTo("admin@tienda.com");
         assertThat(response.merchantId()).isEqualTo(2L);

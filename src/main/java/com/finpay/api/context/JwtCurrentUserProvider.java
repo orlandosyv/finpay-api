@@ -28,11 +28,16 @@ public class JwtCurrentUserProvider implements CurrentUserProvider {
             Object merchantIdClaim = jwtAuthentication.getToken().getClaim("merchantId");
             String email = jwtAuthentication.getToken().getClaimAsString("email");
             Object rolesClaim = jwtAuthentication.getToken().getClaim("roles");
+            String tokenId = jwtAuthentication.getToken().getId();
+            java.time.Instant tokenExpiresAt = jwtAuthentication.getToken().getExpiresAt();
 
             if (!(merchantIdClaim instanceof Number merchantId)
                     || email == null
                     || email.isBlank()
-                    || !(rolesClaim instanceof Collection<?> rawRoles)) {
+                    || !(rolesClaim instanceof Collection<?> rawRoles)
+                    || tokenId == null
+                    || tokenId.isBlank()
+                    || tokenExpiresAt == null) {
                 throw new AccessDeniedException("The access token does not contain a valid user context");
             }
 
@@ -48,7 +53,9 @@ public class JwtCurrentUserProvider implements CurrentUserProvider {
                     userId,
                     email,
                     merchantId.longValue(),
-                    roles);
+                    roles,
+                    tokenId,
+                    tokenExpiresAt);
         } catch (IllegalArgumentException exception) {
             throw new AccessDeniedException(
                     "The access token does not contain a valid user context",

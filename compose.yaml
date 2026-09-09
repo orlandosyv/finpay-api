@@ -34,6 +34,20 @@ services:
         -Q "IF DB_ID(N'finpay_db') IS NULL CREATE DATABASE finpay_db"
     restart: "no"
 
+  redis:
+    image: redis:7.4-alpine
+    command: redis-server --appendonly yes
+    ports:
+      - "${FINPAY_REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
   api:
     build:
       context: .
@@ -43,10 +57,14 @@ services:
         condition: service_healthy
       sqlserver-init:
         condition: service_completed_successfully
+      redis:
+        condition: service_healthy
     environment:
       FINPAY_DB_USERNAME: sa
       FINPAY_DB_PASSWORD: ${FINPAY_DB_PASSWORD:?Set FINPAY_DB_PASSWORD in a .env file}
       FINPAY_JWT_SECRET: ${FINPAY_JWT_SECRET:?Set FINPAY_JWT_SECRET in a .env file}
+      FINPAY_REDIS_HOST: redis
+      FINPAY_REDIS_PORT: 6379
       SPRING_DATASOURCE_URL: jdbc:sqlserver://sqlserver:1433;databaseName=finpay_db;encrypt=true;trustServerCertificate=true
       SPRING_JPA_SHOW_SQL: "false"
     ports:
@@ -55,3 +73,4 @@ services:
 
 volumes:
   sqlserver-data:
+  redis-data:
