@@ -106,6 +106,14 @@ public class OutboxEvent {
         return availableAt;
     }
 
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
+    public Instant getProcessedAt() {
+        return processedAt;
+    }
+
     public void markProcessed(Instant processedAt) {
         status = OutboxEventStatus.PROCESSED;
         this.processedAt = processedAt;

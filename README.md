@@ -77,6 +77,10 @@ Any transition outside this flow is rejected with `409 Conflict`.
 | `POST` | `/api/merchant/webhooks` | Register a webhook endpoint and receive its signing secret | `MERCHANT_ADMIN` | `201 Created` |
 | `GET` | `/api/merchant/webhooks` | List active webhook endpoints | `MERCHANT_ADMIN` | `200 OK` |
 | `DELETE` | `/api/merchant/webhooks/{id}` | Disable a webhook endpoint | `MERCHANT_ADMIN` | `204 No Content` |
+| `GET` | `/api/merchant/webhook-events` | List and filter webhook events with pagination | `MERCHANT_ADMIN` | `200 OK` |
+| `GET` | `/api/merchant/webhook-events/summary` | Get webhook processing health totals | `MERCHANT_ADMIN` | `200 OK` |
+| `GET` | `/api/merchant/webhook-events/{eventId}` | Inspect an event and its immutable payload | `MERCHANT_ADMIN` | `200 OK` |
+| `GET` | `/api/merchant/webhook-events/{eventId}/deliveries` | Inspect the HTTP delivery history for an event | `MERCHANT_ADMIN` | `200 OK` |
 | `GET` | `/api/payments` | List merchant payments | Either merchant role | `200 OK` |
 | `GET` | `/api/payments/{id}` | Find a merchant payment by ID | Either merchant role | `200 OK` |
 | `POST` | `/api/payments` | Create a pending payment using an idempotency key | Either merchant role | `201 Created` |
@@ -250,6 +254,28 @@ Payment changes and outbox events are committed in the same SQL transaction. A b
 
 Local development permits HTTP and private addresses so a receiver can run on the same machine. Production should set `FINPAY_WEBHOOK_REQUIRE_HTTPS=true`, `FINPAY_WEBHOOK_ALLOW_PRIVATE_ADDRESSES=false`, and use a dedicated `FINPAY_WEBHOOK_ENCRYPTION_KEY`.
 
+### Webhook Operations Dashboard API
+
+Merchant administrators can inspect delivery health without accessing SQL Server directly. The dashboard API is read-only and always obtains the merchant identifier from the validated JWT.
+
+List events using optional status, event type, payment, date, and pagination filters:
+
+```bash
+curl "http://localhost:8080/api/merchant/webhook-events?status=FAILED&eventType=PAYMENT_REFUNDED&page=0&size=20" \
+  -H "Authorization: Bearer <admin-access-token>"
+```
+
+The page size must be between 1 and 100. Date filters use inclusive ISO-8601 instants through the `from` and `to` parameters. Event types use the internal enum names `PAYMENT_CREATED`, `PAYMENT_APPROVED`, `PAYMENT_DECLINED`, and `PAYMENT_REFUNDED`; response bodies expose the external names such as `payment.approved`.
+
+Get aggregate processing health:
+
+```bash
+curl "http://localhost:8080/api/merchant/webhook-events/summary" \
+  -H "Authorization: Bearer <admin-access-token>"
+```
+
+The summary returns total, processed, pending, and permanently failed events together with the processed percentage. It separately reports total, successful, and failed HTTP delivery attempts and their success rate. Event detail exposes the exact immutable JSON payload, while the deliveries endpoint returns every destination, attempt number, HTTP status, error, and timestamp. Webhook signing secrets are never exposed by dashboard responses.
+
 ## Role-Based Authorization
 
 FinPay uses role-based access control (RBAC) after JWT authentication. Both roles can view the current merchant context and create or retrieve payments. Only `MERCHANT_ADMIN` can approve, decline, or refund payments and manage the merchant team.
@@ -362,6 +388,7 @@ The test suite includes:
 - Refresh-token rotation, reuse prevention, logout, and access-token revocation tests
 - Idempotent payment creation, conflict, tenant isolation, and concurrent-retry tests
 - Signed webhook delivery, encrypted secrets, tenant isolation, RBAC, and retry tests
+- Webhook dashboard summary, filtering, pagination, detail, delivery history, and tenant-isolation tests
 - Flyway and SQL Server integration tests with Testcontainers
 - OpenAPI and Swagger endpoint checks
 

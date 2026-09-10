@@ -70,4 +70,40 @@ public class WebhookDelivery {
         this.errorMessage = errorMessage;
         this.attemptedAt = attemptedAt;
     }
+
+    public UUID getId() {
+        return id;
+    }
+
+    public UUID getEventId() {
+        return event.getId();
+    }
+
+    public Long getWebhookEndpointId() {
+        return webhookEndpoint.getId();
+    }
+
+    public String getWebhookEndpointUrl() {
+        return webhookEndpoint.getUrl();
+    }
+
+    public int getAttemptNumber() {
+        return attemptNumber;
+    }
+
+    public WebhookDeliveryStatus getStatus() {
+        return status;
+    }
+
+    public Integer getResponseStatus() {
+        return responseStatus;
+    }
+
+    public String getErrorMessage() {
+        return errorMessage;
+    }
+
+    public Instant getAttemptedAt() {
+        return attemptedAt;
+    }
 }

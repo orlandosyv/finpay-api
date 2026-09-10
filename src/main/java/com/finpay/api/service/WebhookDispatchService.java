@@ -59,7 +59,7 @@ public class WebhookDispatchService {
         boolean allSucceeded = true;
         int attemptNumber = event.getAttempts() + 1;
         for (var endpoint : endpoints) {
-            if (webhookDeliveryRepository.existsByEventIdAndWebhookEndpointIdAndStatus(
+            if (webhookDeliveryRepository.existsByEvent_IdAndWebhookEndpoint_IdAndStatus(
                     event.getId(),
                     endpoint.getId(),
                     WebhookDeliveryStatus.SUCCEEDED)) {
