@@ -39,12 +39,12 @@ export const refreshTokenInterceptor: HttpInterceptorFn = (request, next) => {
       }
 
       return authSession.refreshTokens().pipe(
-        switchMap((session) => next(retryWithSession(request, session))),
-        catchError(() => {
+        catchError((refreshError: unknown) => {
           authSession.clear();
           void router.navigateByUrl('/login');
-          return throwError(() => error);
+          return throwError(() => refreshError);
         }),
+        switchMap((session) => next(retryWithSession(request, session))),
       );
     }),
   );

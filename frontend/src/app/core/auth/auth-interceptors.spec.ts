@@ -106,6 +106,27 @@ describe('authentication interceptors', () => {
     expect(tokenStorage.getRefreshToken()).toBe('rotated-refresh');
   });
 
+  it('preserves the idempotency key and session when the retried payment returns 409', () => {
+    tokenStorage.save(loginResponse('expired', 'refresh'));
+    let status = 0;
+    http
+      .post(
+        '/api/payments',
+        { amount: '150.00', currency: 'PEN' },
+        {
+          headers: { 'Idempotency-Key': 'same-operation' },
+        },
+      )
+      .subscribe({ error: (e) => (status = e.status) });
+    httpTesting.expectOne('/api/payments').flush({}, { status: 401, statusText: 'Unauthorized' });
+    httpTesting.expectOne('/api/auth/refresh').flush(loginResponse('rotated', 'rotated-refresh'));
+    const retry = httpTesting.expectOne('/api/payments');
+    expect(retry.request.headers.get('Idempotency-Key')).toBe('same-operation');
+    retry.flush({}, { status: 409, statusText: 'Conflict' });
+    expect(status).toBe(409);
+    expect(tokenStorage.getAccessToken()).toBe('rotated');
+  });
+
   it('should retry logout with both rotated tokens', () => {
     tokenStorage.save(loginResponse('expired-access', 'current-refresh'));
     const authSession = TestBed.inject(AuthSessionService);

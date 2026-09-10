@@ -1,0 +1,134 @@
+<main>
+  <header>
+    <h1>
+      {{ mode === 'list' ? 'Payments' : mode === 'new' ? 'Create payment' : 'Payment details' }}
+    </h1>
+    @if (mode === 'list') {
+      <a class="button" routerLink="/app/payments/new">Create payment</a>
+    } @else {
+      <a routerLink="/app/payments">Back to payments</a>
+    }
+  </header>
+  @if (error()) {
+    <p class="notice" role="alert">{{ error() }}</p>
+  }
+  @if (busy()) {
+    <p role="status">Processing...</p>
+  }
+  @if (mode === 'list') {
+    <p>Payments belonging to your merchant.</p>
+    <button (click)="load()" [disabled]="busy()">Refresh list</button>
+    @if (!busy() && !error() && payments().length === 0) {
+      <p>No payments yet. Create your first payment.</p>
+    }
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Amount</th>
+            <th>Status</th>
+            <th>Created</th>
+            <th>Details</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (p of payments(); track p.id) {
+            <tr>
+              <td>#{{ p.id }}</td>
+              <td>{{ p.amount | number: '1.2-2' }} {{ p.currency }}</td>
+              <td>{{ p.status }}</td>
+              <td>{{ p.createdAt | date: 'short' }}</td>
+              <td>
+                <a [routerLink]="['/app/payments', p.id]">View #{{ p.id }}</a>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+  @if (mode === 'new') {
+    <form [formGroup]="form" (ngSubmit)="create()" novalidate>
+      <label
+        >Amount<input formControlName="amount" inputmode="decimal" placeholder="150.00" />
+        <small
+          >Greater than zero, up to 17 integer digits and 2 decimal places. Use a decimal
+          point.</small
+        >
+      </label>
+      <label
+        >Currency<input formControlName="currency" maxlength="3" placeholder="PEN" />
+        <small>Uppercase ISO currency code, such as PEN, USD or EUR.</small>
+      </label>
+      @if (form.touched && form.invalid) {
+        <p role="alert">
+          Enter a positive amount with at most two decimal places and a three-letter uppercase
+          currency.
+        </p>
+      }
+      <button [disabled]="busy()">
+        {{ attempted() ? 'Retry same request' : 'Create payment' }}
+      </button>
+    </form>
+    <p>
+      Retrying sends the same payment data and key. Start a new operation for a separate payment.
+    </p>
+    <details>
+      <summary>Idempotency key</summary>
+      <code>{{ key() }}</code>
+    </details>
+    <p>
+      <button type="button" (click)="newOperation()" [disabled]="busy()">Start new payment</button>
+    </p>
+    @if (payment(); as p) {
+      <p class="notice" role="status">
+        {{
+          replayed()
+            ? 'Original response replayed — no duplicate created.'
+            : 'Payment created successfully.'
+        }}
+        Payment #{{ p.id }}.
+      </p>
+      <a [routerLink]="['/app/payments', p.id]">View current payment #{{ p.id }}</a>
+    }
+  }
+  @if (mode === 'detail') {
+    <button (click)="load()" [disabled]="busy()">Refresh payment</button>
+    @if (payment(); as p) {
+      <div class="panel">
+        <h2>Payment #{{ p.id }}</h2>
+        <dl>
+          <dt>Amount</dt>
+          <dd>{{ p.amount | number: '1.2-2' }} {{ p.currency }}</dd>
+          <dt>Status</dt>
+          <dd aria-live="polite">{{ p.status }}</dd>
+          <dt>Created</dt>
+          <dd>{{ p.createdAt | date: 'medium' }}</dd>
+          <dt>Updated</dt>
+          <dd>{{ p.updatedAt | date: 'medium' }}</dd>
+        </dl>
+        @if (admin()) {
+          <div class="actions">
+            @if (p.status === 'PENDING') {
+              <button [disabled]="busy()" (click)="confirmation.set('approve')">Approve</button>
+              <button [disabled]="busy()" (click)="confirmation.set('decline')">Decline</button>
+            }
+            @if (p.status === 'APPROVED') {
+              <button [disabled]="busy()" (click)="confirmation.set('refund')">Refund</button>
+            }
+          </div>
+        } @else {
+          <p>Only a merchant administrator can change payment status.</p>
+        }
+      </div>
+      @if (confirmation(); as action) {
+        <section class="notice" aria-label="Confirm payment action">
+          <p>Confirm {{ action }} for payment #{{ p.id }}?</p>
+          <button [disabled]="busy()" (click)="transition()">Confirm {{ action }}</button>
+          <button [disabled]="busy()" (click)="confirmation.set(null)">Cancel</button>
+        </section>
+      }
+    }
+  }
+</main>

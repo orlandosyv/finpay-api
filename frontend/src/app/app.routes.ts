@@ -5,6 +5,13 @@ import { guestGuard } from './core/auth/guest.guard';
 
 export const routes: Routes = [
   {
+    path: 'register',
+    loadComponent: () =>
+      import('./features/auth/register-page/register-page').then((m) => m.RegisterPage),
+    canActivate: [guestGuard],
+    title: 'Register | FinPay Console',
+  },
+  {
     path: 'login',
     loadComponent: () =>
       import('./features/auth/login-page/login-page').then((component) => component.LoginPage),
@@ -16,6 +23,7 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./layout/app-shell/app-shell').then((component) => component.AppShell),
     canActivate: [authGuard],
+    canActivateChild: [authGuard],
     children: [
       {
         path: 'overview',
@@ -28,15 +36,23 @@ export const routes: Routes = [
       {
         path: 'payments',
         loadComponent: () =>
-          import('./shared/feature-placeholder/feature-placeholder').then(
-            (component) => component.FeaturePlaceholder,
-          ),
-        data: {
-          heading: 'Payments',
-          description: 'Create, inspect and transition tenant-scoped payments from this section.',
-          nextCapability: 'Payment management is the next implementation block.',
-        },
+          import('./features/payments/payments-page').then((m) => m.PaymentsPage),
+        data: { mode: 'list' },
         title: 'Payments | FinPay Console',
+      },
+      {
+        path: 'payments/new',
+        loadComponent: () =>
+          import('./features/payments/payments-page').then((m) => m.PaymentsPage),
+        data: { mode: 'new' },
+        title: 'Create payment | FinPay Console',
+      },
+      {
+        path: 'payments/:id',
+        loadComponent: () =>
+          import('./features/payments/payments-page').then((m) => m.PaymentsPage),
+        data: { mode: 'detail' },
+        title: 'Payment details | FinPay Console',
       },
       {
         path: 'team',

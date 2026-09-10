@@ -1,0 +1,98 @@
+:host {
+  display: block;
+}
+h1 {
+  font-size: clamp(2rem, 5vw, 3rem);
+  letter-spacing: -0.04em;
+  margin: 16px 0;
+}
+p {
+  line-height: 1.6;
+}
+header,
+.actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+a {
+  color: #171717;
+  text-underline-offset: 4px;
+}
+form,
+.panel {
+  padding: 24px;
+  background: white;
+  border: 1px solid #d4d4d4;
+  border-radius: 10px;
+  margin: 20px 0;
+}
+form {
+  display: grid;
+  gap: 18px;
+  max-width: 620px;
+}
+label {
+  display: grid;
+  gap: 8px;
+  font-weight: 600;
+}
+input {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px;
+  border: 1px solid #737373;
+  border-radius: 6px;
+}
+button,
+.button {
+  padding: 12px 18px;
+  background: #171717;
+  color: white;
+  border: 1px solid #171717;
+  border-radius: 6px;
+  cursor: pointer;
+  text-decoration: none;
+}
+button:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+.notice {
+  padding: 16px;
+  border-left: 4px solid #171717;
+  background: #e5e5e5;
+  overflow-wrap: anywhere;
+}
+.table-wrap {
+  overflow-x: auto;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+}
+th,
+td {
+  text-align: left;
+  padding: 16px;
+  border-bottom: 1px solid #d4d4d4;
+}
+dl {
+  display: grid;
+  grid-template-columns: minmax(100px, 1fr) 2fr;
+  gap: 16px;
+}
+dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+small {
+  color: #525252;
+  font-weight: 400;
+}
+code {
+  overflow-wrap: anywhere;
+}
