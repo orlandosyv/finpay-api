@@ -24,6 +24,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
 
 import com.finpay.api.dto.CreatePaymentRequest;
+import com.finpay.api.dto.IdempotentPaymentResult;
 import com.finpay.api.exception.GlobalExceptionHandler;
 import com.finpay.api.exception.InvalidPaymentStatusTransitionException;
 import com.finpay.api.exception.PaymentNotFoundException;
@@ -33,6 +34,7 @@ import com.finpay.api.model.MerchantStatus;
 import com.finpay.api.model.Payment;
 import com.finpay.api.model.PaymentStatus;
 import com.finpay.api.service.PaymentService;
+import com.finpay.api.service.PaymentIdempotencyService;
 
 class PaymentControllerTest {
 
@@ -40,17 +42,22 @@ class PaymentControllerTest {
     private static final Instant UPDATED_AT = Instant.parse("2026-09-07T20:05:00Z");
 
     private PaymentService paymentService;
+    private PaymentIdempotencyService paymentIdempotencyService;
     private LocalValidatorFactoryBean validator;
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
         paymentService = mock(PaymentService.class);
+        paymentIdempotencyService = mock(PaymentIdempotencyService.class);
         validator = new LocalValidatorFactoryBean();
         validator.afterPropertiesSet();
 
         mockMvc = MockMvcBuilders
-                .standaloneSetup(new PaymentController(paymentService, new PaymentMapper()))
+                .standaloneSetup(new PaymentController(
+                        paymentService,
+                        new PaymentMapper(),
+                        paymentIdempotencyService))
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .setValidator(validator)
                 .build();
@@ -103,10 +110,15 @@ class PaymentControllerTest {
     @Test
     void createsPaymentAndReturnsCreatedStatus() throws Exception {
         Payment payment = payment(1L, PaymentStatus.PENDING);
-        when(paymentService.createPayment(any(CreatePaymentRequest.class)))
-                .thenReturn(payment);
+        when(paymentIdempotencyService.createPayment(
+                org.mockito.ArgumentMatchers.eq("payment-test-1"),
+                any(CreatePaymentRequest.class)))
+                .thenReturn(new IdempotentPaymentResult(
+                        new PaymentMapper().toResponse(payment),
+                        false));
 
         mockMvc.perform(post("/api/payments")
+                        .header("Idempotency-Key", "payment-test-1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -120,7 +132,9 @@ class PaymentControllerTest {
                 .andExpect(jsonPath("$.createdAt").value(CREATED_AT.toString()))
                 .andExpect(jsonPath("$.updatedAt").value(UPDATED_AT.toString()));
 
-        verify(paymentService).createPayment(any(CreatePaymentRequest.class));
+        verify(paymentIdempotencyService).createPayment(
+                org.mockito.ArgumentMatchers.eq("payment-test-1"),
+                any(CreatePaymentRequest.class));
     }
 
     @Test

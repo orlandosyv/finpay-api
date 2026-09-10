@@ -2,10 +2,13 @@ package com.finpay.api.controller;
 
 import com.finpay.api.dto.CreatePaymentRequest;
 import com.finpay.api.dto.ApiError;
+import com.finpay.api.dto.IdempotentPaymentResult;
 import com.finpay.api.dto.PaymentResponse;
 import com.finpay.api.mapper.PaymentMapper;
+import com.finpay.api.service.PaymentIdempotencyService;
 import com.finpay.api.service.PaymentService;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -36,12 +39,15 @@ public class PaymentController {
 
     private final PaymentService paymentService;
     private final PaymentMapper paymentMapper;
+    private final PaymentIdempotencyService paymentIdempotencyService;
 
     public PaymentController(
             PaymentService paymentService,
-            PaymentMapper paymentMapper) {
+            PaymentMapper paymentMapper,
+            PaymentIdempotencyService paymentIdempotencyService) {
         this.paymentService = paymentService;
         this.paymentMapper = paymentMapper;
+        this.paymentIdempotencyService = paymentIdempotencyService;
     }
 
     @GetMapping
@@ -74,16 +80,29 @@ public class PaymentController {
     }
 
     @PostMapping
-    @ResponseStatus(HttpStatus.CREATED)
     @Operation(
             summary = "Create a payment",
-            description = "Creates a PENDING payment for the authenticated merchant. Available to both merchant roles.")
+            description = "Creates a PENDING payment for the authenticated merchant. Reusing the same Idempotency-Key and request returns the original response without creating a duplicate. Available to both merchant roles.")
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Payment created"),
-            @ApiResponse(responseCode = "400", description = "Request validation failed")
+            @ApiResponse(responseCode = "400", description = "Request validation or Idempotency-Key validation failed"),
+            @ApiResponse(responseCode = "409", description = "Idempotency-Key was already used with different payment data")
     })
-    public PaymentResponse createPayment(@Valid @RequestBody CreatePaymentRequest request) {
-        return paymentMapper.toResponse(paymentService.createPayment(request));
+    public ResponseEntity<PaymentResponse> createPayment(
+            @Parameter(
+                    description = "Unique retry key for this payment operation (maximum 128 characters)",
+                    required = true,
+                    example = "pay-20260909-0001")
+            @RequestHeader(name = "Idempotency-Key", required = false)
+            String idempotencyKey,
+            @Valid @RequestBody CreatePaymentRequest request) {
+        IdempotentPaymentResult result = paymentIdempotencyService
+                .createPayment(idempotencyKey, request);
+
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .header("Idempotency-Replayed", Boolean.toString(result.replayed()))
+                .body(result.payment());
     }
 
     @PatchMapping("/{id}/approve")

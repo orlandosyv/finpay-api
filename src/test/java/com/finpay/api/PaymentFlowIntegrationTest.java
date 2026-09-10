@@ -58,6 +58,7 @@ class PaymentFlowIntegrationTest {
     @Test
     void createsFindsApprovesAndRefundsPayment() throws Exception {
         mockMvc.perform(post("/api/payments")
+                        .header("Idempotency-Key", "flow-approve-refund")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -122,6 +123,7 @@ class PaymentFlowIntegrationTest {
     @Test
     void returnsValidationAndNotFoundErrors() throws Exception {
         mockMvc.perform(post("/api/payments")
+                        .header("Idempotency-Key", "flow-invalid-request")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -167,6 +169,11 @@ class PaymentFlowIntegrationTest {
                 .andExpect(jsonPath("$.paths['/api/payments/{id}/refund']").exists())
                 .andExpect(jsonPath("$.paths['/api/payments'].get.responses['401']").exists())
                 .andExpect(jsonPath("$.paths['/api/payments'].get.responses['403']").exists())
+                .andExpect(jsonPath("$.paths['/api/payments'].post.parameters[0].name")
+                        .value("Idempotency-Key"))
+                .andExpect(jsonPath("$.paths['/api/payments'].post.parameters[0].required")
+                        .value(true))
+                .andExpect(jsonPath("$.paths['/api/payments'].post.responses['409']").exists())
                 .andExpect(jsonPath("$.components.securitySchemes.bearerAuth").exists());
 
         mockMvc.perform(get("/swagger-ui.html"))
@@ -175,6 +182,7 @@ class PaymentFlowIntegrationTest {
 
     private void createPayment(String amount, String currency) throws Exception {
         mockMvc.perform(post("/api/payments")
+                        .header("Idempotency-Key", "flow-" + amount + "-" + currency)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {

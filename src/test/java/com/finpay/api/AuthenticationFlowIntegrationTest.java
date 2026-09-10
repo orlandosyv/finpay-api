@@ -68,6 +68,7 @@ class AuthenticationFlowIntegrationTest {
 
         MvcResult createResult = mockMvc.perform(post("/api/payments")
                         .header(HttpHeaders.AUTHORIZATION, bearer(firstToken))
+                        .header("Idempotency-Key", "authentication-flow-payment")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {

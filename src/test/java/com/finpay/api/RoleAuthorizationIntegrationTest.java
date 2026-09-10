@@ -106,6 +106,7 @@ class RoleAuthorizationIntegrationTest {
 
         MvcResult createPaymentResult = mockMvc.perform(post("/api/payments")
                         .header(HttpHeaders.AUTHORIZATION, bearer(operatorToken))
+                        .header("Idempotency-Key", "rbac-operator-payment")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {

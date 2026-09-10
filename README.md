@@ -19,6 +19,7 @@ The project focuses on API design, validation, controlled response models, datab
 - Let administrators create and list users in their own merchant
 - Expose the authenticated user and merchant context
 - Isolate payment data by the authenticated merchant
+- Prevent duplicate payment creation with merchant-scoped idempotency keys
 - Approve or decline pending payments
 - Refund approved payments
 - Validate amounts and ISO 4217 currency codes: USD, PEN, EUR
@@ -73,7 +74,7 @@ Any transition outside this flow is rejected with `409 Conflict`.
 | `POST` | `/api/merchant/users` | Create a user in the authenticated merchant | `MERCHANT_ADMIN` | `201 Created` |
 | `GET` | `/api/payments` | List merchant payments | Either merchant role | `200 OK` |
 | `GET` | `/api/payments/{id}` | Find a merchant payment by ID | Either merchant role | `200 OK` |
-| `POST` | `/api/payments` | Create a pending payment | Either merchant role | `201 Created` |
+| `POST` | `/api/payments` | Create a pending payment using an idempotency key | Either merchant role | `201 Created` |
 | `PATCH` | `/api/payments/{id}/approve` | Approve a pending payment | `MERCHANT_ADMIN` | `200 OK` |
 | `PATCH` | `/api/payments/{id}/decline` | Decline a pending payment | `MERCHANT_ADMIN` | `200 OK` |
 | `PATCH` | `/api/payments/{id}/refund` | Refund an approved payment | `MERCHANT_ADMIN` | `200 OK` |
@@ -238,8 +239,11 @@ Create a payment:
 curl -X POST http://localhost:8080/api/payments \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <access-token>" \
+  -H "Idempotency-Key: pay-20260909-0001" \
   -d '{"amount":125.50,"currency":"PEN"}'
 ```
+
+`Idempotency-Key` is required, must not be blank, and may contain up to 128 characters. Retrying the same merchant, key, and normalized request returns the original `201 Created` response with `Idempotency-Replayed: true` and does not create another payment. The first response contains `Idempotency-Replayed: false`. Reusing the key with different payment data returns `409 Conflict`. Keys are isolated by merchant, so two merchants may safely use the same value.
 
 Example response:
 
@@ -312,6 +316,7 @@ The test suite includes:
 - JWT signature, login, protected endpoint, and tenant-isolation tests
 - Role authorization, merchant team management, and forbidden-operation tests
 - Refresh-token rotation, reuse prevention, logout, and access-token revocation tests
+- Idempotent payment creation, conflict, tenant isolation, and concurrent-retry tests
 - Flyway and SQL Server integration tests with Testcontainers
 - OpenAPI and Swagger endpoint checks
 
@@ -377,6 +382,8 @@ src/test/java/com/finpay/api
 - **Role-based authorization:** service methods use `@PreAuthorize` so sensitive business operations require `MERCHANT_ADMIN`, while operators receive only the permissions they need.
 - **Tenant isolation:** the current merchant comes from the validated token, and payment and membership queries always filter by `merchant_id`.
 - **Server-controlled membership:** merchant administration requests never accept a `merchantId`; users are always created inside the authenticated administrator's merchant.
+- **Merchant-scoped idempotency:** payment retries use a unique `(merchant_id, idempotency_key)` database constraint. A canonical request hash detects unsafe key reuse, while a transaction commits the payment and its response snapshot atomically.
+- **Concurrency safety:** competing requests cannot both create a payment. The database chooses one winner and later requests replay the stored creation response.
 - **Multi-stage Docker build:** Maven compiles the application in a build image, while the final image contains only the Java runtime and packaged application.
 
 ## Roadmap
@@ -384,7 +391,7 @@ src/test/java/com/finpay/api
 The current version completes the backend foundation and begins the multi-merchant phase. Possible future additions include:
 
 - Invitation-based onboarding and password setup for merchant users
-- Webhooks and idempotency keys
+- Webhooks and asynchronous event delivery
 - Asynchronous messaging
 - Observability and production profiles
 - Angular frontend

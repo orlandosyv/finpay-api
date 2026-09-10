@@ -21,6 +21,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
 
 import com.finpay.api.dto.CreatePaymentRequest;
+import com.finpay.api.dto.IdempotentPaymentResult;
 import com.finpay.api.exception.GlobalExceptionHandler;
 import com.finpay.api.exception.PaymentNotFoundException;
 import com.finpay.api.mapper.PaymentMapper;
@@ -29,21 +30,27 @@ import com.finpay.api.model.MerchantStatus;
 import com.finpay.api.model.Payment;
 import com.finpay.api.model.PaymentStatus;
 import com.finpay.api.service.PaymentService;
+import com.finpay.api.service.PaymentIdempotencyService;
 
 class PaymentControllerValidationTest {
 
     private PaymentService paymentService;
+    private PaymentIdempotencyService paymentIdempotencyService;
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
         paymentService = mock(PaymentService.class);
+        paymentIdempotencyService = mock(PaymentIdempotencyService.class);
 
         LocalValidatorFactoryBean validator = new LocalValidatorFactoryBean();
         validator.afterPropertiesSet();
 
         mockMvc = MockMvcBuilders
-                .standaloneSetup(new PaymentController(paymentService, new PaymentMapper()))
+                .standaloneSetup(new PaymentController(
+                        paymentService,
+                        new PaymentMapper(),
+                        paymentIdempotencyService))
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .setValidator(validator)
                 .build();
@@ -57,10 +64,15 @@ class PaymentControllerValidationTest {
                 "PEN",
                 PaymentStatus.PENDING);
 
-        when(paymentService.createPayment(any(CreatePaymentRequest.class)))
-                .thenReturn(payment);
+        when(paymentIdempotencyService.createPayment(
+                org.mockito.ArgumentMatchers.eq("validation-valid-1"),
+                any(CreatePaymentRequest.class)))
+                .thenReturn(new IdempotentPaymentResult(
+                        new PaymentMapper().toResponse(payment),
+                        false));
 
         mockMvc.perform(post("/api/payments")
+                        .header("Idempotency-Key", "validation-valid-1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -83,6 +95,7 @@ class PaymentControllerValidationTest {
     })
     void rejectsInvalidAmounts(String requestBody) throws Exception {
         mockMvc.perform(post("/api/payments")
+                        .header("Idempotency-Key", "invalid-amount")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
                 .andExpect(status().isBadRequest())
@@ -105,6 +118,7 @@ class PaymentControllerValidationTest {
     })
     void rejectsInvalidCurrencies(String requestBody) throws Exception {
         mockMvc.perform(post("/api/payments")
+                        .header("Idempotency-Key", "invalid-currency")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
                 .andExpect(status().isBadRequest())
