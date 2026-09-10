@@ -1,0 +1,68 @@
+<div class="app-shell">
+  <aside class="sidebar">
+    <a class="brand" routerLink="/app/overview" aria-label="FinPay Console home">
+      <span class="brand-mark">FP</span>
+      <span>
+        <strong>FinPay</strong>
+        <small>Merchant Console</small>
+      </span>
+    </a>
+
+    <nav aria-label="Main navigation">
+      <p class="nav-label">Workspace</p>
+      <a
+        routerLink="/app/overview"
+        routerLinkActive="active"
+        [routerLinkActiveOptions]="{ exact: true }"
+      >
+        <span aria-hidden="true">01</span>
+        Overview
+      </a>
+      <a routerLink="/app/payments" routerLinkActive="active">
+        <span aria-hidden="true">02</span>
+        Payments
+      </a>
+
+      @if (isAdmin()) {
+        <p class="nav-label admin-label">Administration</p>
+        <a routerLink="/app/team" routerLinkActive="active">
+          <span aria-hidden="true">03</span>
+          Team
+        </a>
+        <a routerLink="/app/webhooks" routerLinkActive="active">
+          <span aria-hidden="true">04</span>
+          Webhook endpoints
+        </a>
+        <a routerLink="/app/webhook-events" routerLinkActive="active">
+          <span aria-hidden="true">05</span>
+          Deliveries
+        </a>
+      }
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="identity">
+        <span>{{ session()?.merchantName }}</span>
+        <strong>{{ session()?.email }}</strong>
+        <small>{{ session()?.role }}</small>
+      </div>
+      <button type="button" (click)="logout()" [disabled]="loggingOut()">
+        {{ loggingOut() ? 'Signing out...' : 'Sign out' }}
+      </button>
+    </div>
+  </aside>
+
+  <div class="workspace">
+    <header class="topbar">
+      <div>
+        <span>Authenticated tenant</span>
+        <strong>{{ session()?.merchantName }}</strong>
+      </div>
+      <span class="role-badge">{{ session()?.role }}</span>
+    </header>
+
+    <div class="content">
+      <router-outlet />
+    </div>
+  </div>
+</div>

@@ -1,0 +1,40 @@
+.placeholder-page {
+  max-width: 780px;
+}
+
+.eyebrow {
+  margin: 0 0 14px;
+  color: #525252;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+}
+
+h1 {
+  margin: 0;
+  font-size: clamp(2.3rem, 7vw, 5rem);
+  letter-spacing: -0.055em;
+  line-height: 1;
+}
+
+.description {
+  max-width: 680px;
+  margin: 22px 0 38px;
+  color: #525252;
+  font-size: 1.05rem;
+  line-height: 1.65;
+}
+
+section {
+  padding: 22px;
+  background: #ffffff;
+  border: 1px solid #d4d4d4;
+  border-left: 5px solid #171717;
+  border-radius: 10px;
+}
+
+section p {
+  margin: 7px 0 0;
+  color: #525252;
+  line-height: 1.5;
+}

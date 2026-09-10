@@ -1,19 +1,13 @@
 :host {
   display: block;
-  min-height: 100vh;
 }
 
 .session-page {
-  width: min(100% - 40px, 1120px);
-  margin: 0 auto;
-  padding: clamp(32px, 7vw, 80px) 0;
+  width: 100%;
 }
 
 header {
   display: flex;
-  justify-content: space-between;
-  gap: 28px;
-  align-items: flex-start;
   margin-bottom: 42px;
 }
 
@@ -55,12 +49,6 @@ button {
   border-radius: 8px;
   font-weight: 600;
   cursor: pointer;
-}
-
-.secondary-button {
-  flex: 0 0 auto;
-  color: #171717;
-  background: transparent;
 }
 
 button:hover:not(:disabled) {
@@ -130,10 +118,6 @@ article strong {
 }
 
 @media (max-width: 700px) {
-  header {
-    flex-direction: column;
-  }
-
   .details-grid {
     grid-template-columns: 1fr;
   }

@@ -1,17 +1,13 @@
 <main class="session-page">
   <header>
     <div>
-      <p class="eyebrow">FINPAY CONSOLE</p>
-      <h1>Authenticated session</h1>
+      <p class="eyebrow">OVERVIEW</p>
+      <h1>Merchant context</h1>
       <p class="intro">
         This page is protected and loads its merchant context from
         <code>GET /api/merchant/me</code>.
       </p>
     </div>
-
-    <button type="button" class="secondary-button" (click)="logout()" [disabled]="loggingOut()">
-      {{ loggingOut() ? 'Signing out...' : 'Sign out' }}
-    </button>
   </header>
 
   @if (loading()) {
