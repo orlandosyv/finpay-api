@@ -45,6 +45,9 @@ class PaymentServiceTest {
     @Mock
     private CurrentMerchantProvider currentMerchantProvider;
 
+    @Mock
+    private PaymentEventService paymentEventService;
+
     @InjectMocks
     private PaymentService paymentService;
 

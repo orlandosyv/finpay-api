@@ -34,6 +34,7 @@ import com.finpay.api.model.MerchantStatus;
 import com.finpay.api.repository.MerchantRepository;
 import com.finpay.api.repository.PaymentIdempotencyRepository;
 import com.finpay.api.repository.PaymentRepository;
+import com.finpay.api.repository.OutboxEventRepository;
 import com.jayway.jsonpath.JsonPath;
 
 @SpringBootTest
@@ -55,11 +56,15 @@ class PaymentIdempotencyIntegrationTest {
     @Autowired
     private MerchantRepository merchantRepository;
 
+    @Autowired
+    private OutboxEventRepository outboxEventRepository;
+
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
         idempotencyRepository.deleteAll();
+        outboxEventRepository.deleteAll();
         paymentRepository.deleteAll();
         mockMvc = MockMvcBuilders
                 .webAppContextSetup(applicationContext)
@@ -98,6 +103,7 @@ class PaymentIdempotencyIntegrationTest {
                 .isEqualTo(firstResponse.getResponse().getContentAsString());
         assertThat(paymentRepository.count()).isEqualTo(1);
         assertThat(idempotencyRepository.count()).isEqualTo(1);
+        assertThat(outboxEventRepository.count()).isEqualTo(1);
     }
 
     @Test
@@ -184,6 +190,7 @@ class PaymentIdempotencyIntegrationTest {
 
         assertThat(paymentRepository.count()).isEqualTo(1);
         assertThat(idempotencyRepository.count()).isEqualTo(1);
+        assertThat(outboxEventRepository.count()).isEqualTo(1);
     }
 
     private MvcResult concurrentCreate(

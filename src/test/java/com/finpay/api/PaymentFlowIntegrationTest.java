@@ -162,6 +162,8 @@ class PaymentFlowIntegrationTest {
                 .andExpect(jsonPath("$.paths['/api/auth/logout']").exists())
                 .andExpect(jsonPath("$.paths['/api/merchant/me']").exists())
                 .andExpect(jsonPath("$.paths['/api/merchant/users']").exists())
+                .andExpect(jsonPath("$.paths['/api/merchant/webhooks']").exists())
+                .andExpect(jsonPath("$.paths['/api/merchant/webhooks/{id}']").exists())
                 .andExpect(jsonPath("$.paths['/api/payments']").exists())
                 .andExpect(jsonPath("$.paths['/api/payments/{id}']").exists())
                 .andExpect(jsonPath("$.paths['/api/payments/{id}/approve']").exists())

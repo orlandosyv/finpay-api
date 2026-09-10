@@ -1,18 +1,21 @@
 package com.finpay.api.service;
 
 import java.util.List;
+
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
 import com.finpay.api.context.CurrentMerchantProvider;
 import com.finpay.api.dto.CreatePaymentRequest;
 import com.finpay.api.exception.MerchantNotFoundException;
+import com.finpay.api.exception.PaymentNotFoundException;
 import com.finpay.api.model.Merchant;
 import com.finpay.api.model.Payment;
+import com.finpay.api.model.PaymentStatus;
+import com.finpay.api.model.WebhookEventType;
 import com.finpay.api.repository.MerchantRepository;
 import com.finpay.api.repository.PaymentRepository;
-import com.finpay.api.model.PaymentStatus;
-import com.finpay.api.exception.PaymentNotFoundException;
 
 @Service
 public class PaymentService {
@@ -20,14 +23,17 @@ public class PaymentService {
     private final PaymentRepository paymentRepository;
     private final MerchantRepository merchantRepository;
     private final CurrentMerchantProvider currentMerchantProvider;
+    private final PaymentEventService paymentEventService;
 
     public PaymentService(
             PaymentRepository paymentRepository,
             MerchantRepository merchantRepository,
-            CurrentMerchantProvider currentMerchantProvider) {
+            CurrentMerchantProvider currentMerchantProvider,
+            PaymentEventService paymentEventService) {
         this.paymentRepository = paymentRepository;
         this.merchantRepository = merchantRepository;
         this.currentMerchantProvider = currentMerchantProvider;
+        this.paymentEventService = paymentEventService;
     }
 
     @PreAuthorize("hasAnyRole('MERCHANT_ADMIN', 'MERCHANT_USER')")
@@ -55,37 +61,39 @@ public class PaymentService {
                 request.getCurrency(),
                 PaymentStatus.PENDING);
 
-        return paymentRepository.save(payment);
+        Payment savedPayment = paymentRepository.save(payment);
+        paymentEventService.record(savedPayment, WebhookEventType.PAYMENT_CREATED);
+        return savedPayment;
     }
 
     @PreAuthorize("hasRole('MERCHANT_ADMIN')")
     @Transactional
     public Payment approvePayment(Long id) {
         Payment payment = findPaymentOrThrow(id);
-
         payment.approve();
-
-        return paymentRepository.save(payment);
+        Payment savedPayment = paymentRepository.save(payment);
+        paymentEventService.record(savedPayment, WebhookEventType.PAYMENT_APPROVED);
+        return savedPayment;
     }
 
     @PreAuthorize("hasRole('MERCHANT_ADMIN')")
     @Transactional
     public Payment declinePayment(Long id) {
         Payment payment = findPaymentOrThrow(id);
-
         payment.decline();
-
-        return paymentRepository.save(payment);
+        Payment savedPayment = paymentRepository.save(payment);
+        paymentEventService.record(savedPayment, WebhookEventType.PAYMENT_DECLINED);
+        return savedPayment;
     }
 
     @PreAuthorize("hasRole('MERCHANT_ADMIN')")
     @Transactional
     public Payment refundPayment(Long id) {
         Payment payment = findPaymentOrThrow(id);
-
         payment.refund();
-
-        return paymentRepository.save(payment);
+        Payment savedPayment = paymentRepository.save(payment);
+        paymentEventService.record(savedPayment, WebhookEventType.PAYMENT_REFUNDED);
+        return savedPayment;
     }
 
     private Payment findPaymentOrThrow(Long id) {
@@ -96,5 +104,4 @@ public class PaymentService {
     private Long currentMerchantId() {
         return currentMerchantProvider.getCurrentMerchantId();
     }
-
 }

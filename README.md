@@ -20,6 +20,8 @@ The project focuses on API design, validation, controlled response models, datab
 - Expose the authenticated user and merchant context
 - Isolate payment data by the authenticated merchant
 - Prevent duplicate payment creation with merchant-scoped idempotency keys
+- Register merchant webhook endpoints and deliver signed payment events
+- Persist webhook events with a transactional outbox and retry failed deliveries
 - Approve or decline pending payments
 - Refund approved payments
 - Validate amounts and ISO 4217 currency codes: USD, PEN, EUR
@@ -72,6 +74,9 @@ Any transition outside this flow is rejected with `409 Conflict`.
 | `GET` | `/api/merchant/me` | Get the authenticated user and merchant context | Either merchant role | `200 OK` |
 | `GET` | `/api/merchant/users` | List users from the authenticated merchant | `MERCHANT_ADMIN` | `200 OK` |
 | `POST` | `/api/merchant/users` | Create a user in the authenticated merchant | `MERCHANT_ADMIN` | `201 Created` |
+| `POST` | `/api/merchant/webhooks` | Register a webhook endpoint and receive its signing secret | `MERCHANT_ADMIN` | `201 Created` |
+| `GET` | `/api/merchant/webhooks` | List active webhook endpoints | `MERCHANT_ADMIN` | `200 OK` |
+| `DELETE` | `/api/merchant/webhooks/{id}` | Disable a webhook endpoint | `MERCHANT_ADMIN` | `204 No Content` |
 | `GET` | `/api/payments` | List merchant payments | Either merchant role | `200 OK` |
 | `GET` | `/api/payments/{id}` | Find a merchant payment by ID | Either merchant role | `200 OK` |
 | `POST` | `/api/payments` | Create a pending payment using an idempotency key | Either merchant role | `201 Created` |
@@ -206,6 +211,45 @@ curl -X POST http://localhost:8080/api/auth/logout \
 
 Logout removes the refresh session and stores the JWT identifier in Redis until the access token would naturally expire. This makes both tokens unusable immediately.
 
+## Webhooks
+
+Merchant administrators can register one or more URLs that receive payment lifecycle events. The signing secret is returned only during creation and is encrypted with AES-GCM before it is stored in SQL Server.
+
+```bash
+curl -X POST http://localhost:8080/api/merchant/webhooks \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <admin-access-token>" \
+  -d '{"url":"https://merchant.example.com/webhooks/finpay"}'
+```
+
+Example creation response:
+
+```json
+{
+  "id": 1,
+  "url": "https://merchant.example.com/webhooks/finpay",
+  "active": true,
+  "signingSecret": "<store-this-secret-securely>",
+  "createdAt": "2026-09-09T20:00:00Z",
+  "updatedAt": "2026-09-09T20:00:00Z"
+}
+```
+
+FinPay emits `payment.created`, `payment.approved`, `payment.declined`, and `payment.refunded`. Each request includes these headers:
+
+```text
+X-FinPay-Event-Id: <unique-event-uuid>
+X-FinPay-Event-Type: payment.approved
+X-FinPay-Timestamp: <unix-seconds>
+X-FinPay-Signature: v1=<hmac-sha256-hex>
+```
+
+The signature is `HMAC-SHA256(signingSecret, timestamp + "." + rawRequestBody)`. Receivers should compute the signature over the exact raw JSON body, compare it in constant time, reject stale timestamps, and deduplicate deliveries by `X-FinPay-Event-Id`.
+
+Payment changes and outbox events are committed in the same SQL transaction. A background dispatcher sends pending events every five seconds. Failed deliveries use backoff intervals of 1 minute, 5 minutes, 30 minutes, and 2 hours, then move to `FAILED` after the fifth attempt. Delivery is **at least once**, so receivers must be idempotent.
+
+Local development permits HTTP and private addresses so a receiver can run on the same machine. Production should set `FINPAY_WEBHOOK_REQUIRE_HTTPS=true`, `FINPAY_WEBHOOK_ALLOW_PRIVATE_ADDRESSES=false`, and use a dedicated `FINPAY_WEBHOOK_ENCRYPTION_KEY`.
+
 ## Role-Based Authorization
 
 FinPay uses role-based access control (RBAC) after JWT authentication. Both roles can view the current merchant context and create or retrieve payments. Only `MERCHANT_ADMIN` can approve, decline, or refund payments and manage the merchant team.
@@ -317,6 +361,7 @@ The test suite includes:
 - Role authorization, merchant team management, and forbidden-operation tests
 - Refresh-token rotation, reuse prevention, logout, and access-token revocation tests
 - Idempotent payment creation, conflict, tenant isolation, and concurrent-retry tests
+- Signed webhook delivery, encrypted secrets, tenant isolation, RBAC, and retry tests
 - Flyway and SQL Server integration tests with Testcontainers
 - OpenAPI and Swagger endpoint checks
 
@@ -343,7 +388,7 @@ The default local JDBC configuration connects to SQL Server at `127.0.0.1:1433`.
 
 ```text
 src/main/java/com/finpay/api
-|-- config/       OpenAPI, password, JWT, and security configuration
+|-- config/       OpenAPI, password, JWT, security, and scheduling configuration
 |-- context/      Authenticated merchant resolution
 |-- controller/   REST endpoints
 |-- dto/          Request and response contracts
@@ -384,6 +429,9 @@ src/test/java/com/finpay/api
 - **Server-controlled membership:** merchant administration requests never accept a `merchantId`; users are always created inside the authenticated administrator's merchant.
 - **Merchant-scoped idempotency:** payment retries use a unique `(merchant_id, idempotency_key)` database constraint. A canonical request hash detects unsafe key reuse, while a transaction commits the payment and its response snapshot atomically.
 - **Concurrency safety:** competing requests cannot both create a payment. The database chooses one winner and later requests replay the stored creation response.
+- **Transactional outbox:** every payment change and its webhook event commit together in SQL Server, avoiding lost notifications if the HTTP destination is temporarily unavailable.
+- **Signed delivery:** webhook secrets are encrypted at rest and used to authenticate payloads with HMAC-SHA256.
+- **At-least-once retries:** failed deliveries are persisted and retried with backoff; consumers deduplicate by event ID.
 - **Multi-stage Docker build:** Maven compiles the application in a build image, while the final image contains only the Java runtime and packaged application.
 
 ## Roadmap
@@ -391,7 +439,7 @@ src/test/java/com/finpay/api
 The current version completes the backend foundation and begins the multi-merchant phase. Possible future additions include:
 
 - Invitation-based onboarding and password setup for merchant users
-- Webhooks and asynchronous event delivery
+- Kafka-based event streaming for higher throughput and multiple consumers
 - Asynchronous messaging
 - Observability and production profiles
 - Angular frontend
