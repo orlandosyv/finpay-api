@@ -69,21 +69,13 @@
           </div>
         }
 
-        @if (authenticatedMerchant()) {
-          <div class="alert success-alert" role="status">
-            <strong>Credentials accepted</strong>
-            <span>{{ authenticatedMerchant() }}</span>
-            <small>Token persistence and protected navigation come next.</small>
-          </div>
-        }
-
         <button type="submit" [disabled]="submitting()">
           {{ submitting() ? 'Signing in...' : 'Sign in' }}
         </button>
       </form>
 
       <p class="stage-note">
-        Current stage: credentials are validated, but the returned tokens are not stored yet.
+        Your session uses a short-lived access token and a rotating refresh token.
       </p>
     </div>
   </section>

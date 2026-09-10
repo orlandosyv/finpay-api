@@ -1,9 +1,9 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, inject, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { finalize } from 'rxjs';
-import { AuthApiService } from '../../../core/api/auth-api.service';
+import { AuthSessionService } from '../../../core/auth/auth-session.service';
 import { ApiError } from '../../../core/models/api-error';
 
 @Component({
@@ -13,7 +13,8 @@ import { ApiError } from '../../../core/models/api-error';
   styleUrl: './login-page.scss',
 })
 export class LoginPage {
-  private readonly authApi = inject(AuthApiService);
+  private readonly authSession = inject(AuthSessionService);
+  private readonly router = inject(Router);
 
   protected readonly form = new FormGroup({
     email: new FormControl('', {
@@ -29,12 +30,10 @@ export class LoginPage {
   protected readonly submitting = signal(false);
   protected readonly errorMessage = signal<string | null>(null);
   protected readonly fieldErrors = signal<Record<string, string>>({});
-  protected readonly authenticatedMerchant = signal<string | null>(null);
 
   protected submit(): void {
     this.errorMessage.set(null);
     this.fieldErrors.set({});
-    this.authenticatedMerchant.set(null);
 
     if (this.form.invalid) {
       this.form.markAllAsTouched();
@@ -43,14 +42,12 @@ export class LoginPage {
 
     this.submitting.set(true);
 
-    this.authApi
+    this.authSession
       .login(this.form.getRawValue())
       .pipe(finalize(() => this.submitting.set(false)))
       .subscribe({
-        next: (response) => {
-          this.authenticatedMerchant.set(
-            `${response.merchantName} · ${response.email} · ${response.role}`,
-          );
+        next: () => {
+          void this.router.navigateByUrl('/app');
         },
         error: (error: HttpErrorResponse) => {
           const apiError = this.readApiError(error);

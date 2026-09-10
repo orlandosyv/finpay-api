@@ -1,0 +1,64 @@
+<main class="session-page">
+  <header>
+    <div>
+      <p class="eyebrow">FINPAY CONSOLE</p>
+      <h1>Authenticated session</h1>
+      <p class="intro">
+        This page is protected and loads its merchant context from
+        <code>GET /api/merchant/me</code>.
+      </p>
+    </div>
+
+    <button type="button" class="secondary-button" (click)="logout()" [disabled]="loggingOut()">
+      {{ loggingOut() ? 'Signing out...' : 'Sign out' }}
+    </button>
+  </header>
+
+  @if (loading()) {
+    <section class="state-panel" aria-live="polite">Loading protected merchant data...</section>
+  } @else if (errorMessage()) {
+    <section class="state-panel error-panel" role="alert">
+      <strong>Protected request failed</strong>
+      <p>{{ errorMessage() }}</p>
+      <button type="button" (click)="loadMerchant()">Try again</button>
+    </section>
+  } @else if (merchant(); as currentMerchant) {
+    <section class="success-banner" role="status">
+      <strong>JWT accepted by Spring Security</strong>
+      <span>The protected API request returned the authenticated tenant context.</span>
+    </section>
+
+    <section class="details-grid" aria-label="Merchant session details">
+      <article>
+        <span>Merchant</span>
+        <strong>{{ currentMerchant.merchantName }}</strong>
+        <small>ID {{ currentMerchant.merchantId }} · {{ currentMerchant.merchantStatus }}</small>
+      </article>
+      <article>
+        <span>Authenticated user</span>
+        <strong>{{ currentMerchant.email }}</strong>
+        <small>User ID {{ currentMerchant.userId }}</small>
+      </article>
+      <article>
+        <span>Authorization role</span>
+        <strong>{{ currentMerchant.role }}</strong>
+        <small>Resolved from the authenticated merchant membership</small>
+      </article>
+      <article>
+        <span>Access token expires</span>
+        <strong>{{ session()?.accessTokenExpiresAt | date: 'mediumTime' }}</strong>
+        <small>A 401 will trigger one automatic refresh attempt</small>
+      </article>
+      <article>
+        <span>Refresh token expires</span>
+        <strong>{{ session()?.refreshTokenExpiresAt | date: 'medium' }}</strong>
+        <small>The refresh token rotates whenever it is consumed</small>
+      </article>
+      <article>
+        <span>Browser storage</span>
+        <strong>sessionStorage</strong>
+        <small>The session is removed when this browser tab is closed</small>
+      </article>
+    </section>
+  }
+</main>

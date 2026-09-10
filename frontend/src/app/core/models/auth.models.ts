@@ -17,3 +17,16 @@ export interface LoginResponse {
   merchantName: string;
   role: MerchantRole;
 }
+
+export interface RefreshTokenRequest {
+  refreshToken: string;
+}
+
+export interface LogoutRequest {
+  refreshToken: string;
+}
+
+export interface AuthSession extends LoginResponse {
+  accessTokenExpiresAt: number;
+  refreshTokenExpiresAt: number;
+}
