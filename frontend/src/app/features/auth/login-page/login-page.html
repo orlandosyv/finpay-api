@@ -1,0 +1,90 @@
+<main class="login-page">
+  <section class="brand-panel" aria-labelledby="brand-title">
+    <div>
+      <p class="brand-label">FINPAY</p>
+      <h1 id="brand-title">Merchant payment operations, in one place.</h1>
+      <p class="brand-copy">
+        Sign in to manage payments, team access, webhook endpoints and delivery activity.
+      </p>
+    </div>
+
+    <a routerLink="/system/health" class="health-link">Check API connection</a>
+  </section>
+
+  <section class="form-panel" aria-labelledby="login-title">
+    <div class="form-container">
+      <p class="section-label">FINPAY CONSOLE</p>
+      <h2 id="login-title">Sign in</h2>
+      <p class="form-intro">Use the credentials of a registered merchant user.</p>
+
+      <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+        <div class="field">
+          <label for="email">Email address</label>
+          <input
+            id="email"
+            type="email"
+            formControlName="email"
+            autocomplete="username"
+            maxlength="254"
+            placeholder="admin@store.com"
+          />
+
+          @if (form.controls.email.touched && form.controls.email.hasError('required')) {
+            <p class="field-error">Email is required.</p>
+          } @else if (form.controls.email.touched && form.controls.email.hasError('email')) {
+            <p class="field-error">Enter a valid email address.</p>
+          } @else if (form.controls.email.touched && form.controls.email.hasError('maxlength')) {
+            <p class="field-error">Email must not exceed 254 characters.</p>
+          } @else if (fieldErrors()['email']) {
+            <p class="field-error">{{ fieldErrors()['email'] }}</p>
+          }
+        </div>
+
+        <div class="field">
+          <label for="password">Password</label>
+          <input
+            id="password"
+            type="password"
+            formControlName="password"
+            autocomplete="current-password"
+            maxlength="72"
+            placeholder="Your password"
+          />
+
+          @if (form.controls.password.touched && form.controls.password.hasError('required')) {
+            <p class="field-error">Password is required.</p>
+          } @else if (
+            form.controls.password.touched && form.controls.password.hasError('maxlength')
+          ) {
+            <p class="field-error">Password must not exceed 72 characters.</p>
+          } @else if (fieldErrors()['password']) {
+            <p class="field-error">{{ fieldErrors()['password'] }}</p>
+          }
+        </div>
+
+        @if (errorMessage()) {
+          <div class="alert error-alert" role="alert">
+            <strong>Sign-in failed</strong>
+            <span>{{ errorMessage() }}</span>
+          </div>
+        }
+
+        @if (authenticatedMerchant()) {
+          <div class="alert success-alert" role="status">
+            <strong>Credentials accepted</strong>
+            <span>{{ authenticatedMerchant() }}</span>
+            <small>Token persistence and protected navigation come next.</small>
+          </div>
+        }
+
+        <button type="submit" [disabled]="submitting()">
+          {{ submitting() ? 'Signing in...' : 'Sign in' }}
+        </button>
+      </form>
+
+      <p class="stage-note">
+        Current stage: credentials are validated, but the returned tokens are not stored yet.
+      </p>
+    </div>
+  </section>
+</main>

@@ -1,0 +1,21 @@
+<main class="health-page">
+  <section class="health-card" aria-labelledby="page-title">
+    <p class="eyebrow">FINPAY CONSOLE</p>
+    <h1 id="page-title">Frontend foundation</h1>
+    <p class="description">
+      Angular is running and the development proxy is ready to communicate with the FinPay API.
+    </p>
+
+    <div class="status-row" aria-live="polite">
+      <span class="status-indicator" [class.online]="status() === 'online'"></span>
+      <div>
+        <strong>API status: {{ status() }}</strong>
+        <p>{{ message() }}</p>
+      </div>
+    </div>
+
+    <button type="button" (click)="checkApi()" [disabled]="status() === 'checking'">
+      Check connection
+    </button>
+  </section>
+</main>
