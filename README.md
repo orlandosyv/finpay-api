@@ -1,11 +1,11 @@
-# FinPay API
+# FinPay
 
 [![Continuous Integration](https://github.com/orlandosyv/finpay-api/actions/workflows/ci.yml/badge.svg)](https://github.com/orlandosyv/finpay-api/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-FinPay is an instructive REST API that simulates the core lifecycle of a payment gateway. It provides payment creation, lookup, approval, decline, and refund operations while demonstrating production-oriented backend practices with Java and Spring Boot.
+FinPay is an educational full-stack payment platform that simulates the core lifecycle of a payment gateway. It combines a Java and Spring Boot REST API with an Angular Merchant Console for operating payments, users, authentication, webhook endpoints, and delivery monitoring.
 
-The project focuses on API design, validation, controlled response models, database migrations, automated testing, interactive documentation, and containerized execution.
+The project focuses on API design, multi-tenant architecture, authentication and authorization, reliable event delivery, observable operations, automated testing, and containerized infrastructure. It is intended for learning and portfolio demonstration rather than real financial processing.
 
 ## Features
 
@@ -32,8 +32,16 @@ The project focuses on API design, validation, controlled response models, datab
 - Document and test endpoints through Swagger UI
 - Run integration tests against real SQL Server and Redis containers
 - Start the API, SQL Server, and Redis together with Docker Compose
+- Operate FinPay through a responsive Angular Merchant Console
+- Register and authenticate merchants from the browser
+- Manage payments, merchant users, roles, and webhook destinations visually
+- Inspect webhook health, immutable payloads, HTTP responses, failures, and retries
+- Automatically attach and refresh JWT credentials from the frontend
+- Protect frontend routes according to authentication state and merchant role
 
 ## Technology Stack
+
+### Backend
 
 - Java 25
 - Spring Boot 4.1.1
@@ -41,14 +49,46 @@ The project focuses on API design, validation, controlled response models, datab
 - Spring Data JPA and Hibernate
 - Spring Security and OAuth2 Resource Server
 - Jakarta Bean Validation
-- Microsoft SQL Server 2022
-- Redis 7.4
 - Flyway
-- JUnit, Mockito, MockMvc, and AssertJ
-- Testcontainers
 - Springdoc OpenAPI and Swagger UI
 - Maven
+
+### Frontend
+
+- Angular 22 with standalone components
+- TypeScript 6
+- Angular Router with lazy-loaded routes and functional guards
+- Angular Signals and Reactive Forms
+- Angular HttpClient and HTTP interceptors
+- RxJS 7
+- SCSS and responsive grayscale UI
+- Vitest and Angular HTTP testing utilities
+
+### Data, Infrastructure, and Testing
+
+- Microsoft SQL Server 2022
+- Redis 7.4
 - Docker and Docker Compose
+- JUnit, Mockito, MockMvc, and AssertJ
+- Testcontainers for SQL Server and Redis integration tests
+- GitHub Actions for backend continuous integration
+
+## Architecture Overview
+
+```mermaid
+flowchart LR
+    Browser[Merchant browser] --> Angular[Angular Merchant Console]
+    Angular -->|REST + JWT| API[Spring Boot API]
+    API --> Security[Spring Security and RBAC]
+    Security --> Services[Application services]
+    Services --> SQL[(SQL Server)]
+    Services --> Redis[(Redis sessions and revocations)]
+    SQL --> Outbox[Transactional outbox]
+    Outbox --> Dispatcher[Webhook dispatcher]
+    Dispatcher -->|Signed HTTP events| Merchant[Merchant webhook server]
+```
+
+Angular provides the user-facing workflow, but the API remains the authoritative security boundary. Every protected request is validated independently, and the authenticated JWT determines the current merchant and role. SQL Server stores business state and durable webhook records, while Redis manages refresh-token sessions and access-token revocation.
 
 ## Payment Lifecycle
 
@@ -64,33 +104,33 @@ Any transition outside this flow is rejected with `409 Conflict`.
 
 ## API Endpoints
 
-| Method | Endpoint | Description | Required role | Success status |
-| --- | --- | --- | --- | --- |
-| `GET` | `/api/health` | Check API availability | Public | `200 OK` |
-| `POST` | `/api/auth/register` | Register a merchant and its administrator | Public | `201 Created` |
-| `POST` | `/api/auth/login` | Authenticate and obtain a JWT access token | Public | `200 OK` |
-| `POST` | `/api/auth/refresh` | Rotate a refresh token and obtain a new token pair | Public | `200 OK` |
-| `POST` | `/api/auth/logout` | Revoke the current session | Either merchant role | `204 No Content` |
-| `GET` | `/api/merchant/me` | Get the authenticated user and merchant context | Either merchant role | `200 OK` |
-| `GET` | `/api/merchant/users` | List users from the authenticated merchant | `MERCHANT_ADMIN` | `200 OK` |
-| `POST` | `/api/merchant/users` | Create a user in the authenticated merchant | `MERCHANT_ADMIN` | `201 Created` |
-| `POST` | `/api/merchant/webhooks` | Register a webhook endpoint and receive its signing secret | `MERCHANT_ADMIN` | `201 Created` |
-| `GET` | `/api/merchant/webhooks` | List active webhook endpoints | `MERCHANT_ADMIN` | `200 OK` |
-| `DELETE` | `/api/merchant/webhooks/{id}` | Disable a webhook endpoint | `MERCHANT_ADMIN` | `204 No Content` |
-| `GET` | `/api/merchant/webhook-events` | List and filter webhook events with pagination | `MERCHANT_ADMIN` | `200 OK` |
-| `GET` | `/api/merchant/webhook-events/summary` | Get webhook processing health totals | `MERCHANT_ADMIN` | `200 OK` |
-| `GET` | `/api/merchant/webhook-events/{eventId}` | Inspect an event and its immutable payload | `MERCHANT_ADMIN` | `200 OK` |
-| `GET` | `/api/merchant/webhook-events/{eventId}/deliveries` | Inspect the HTTP delivery history for an event | `MERCHANT_ADMIN` | `200 OK` |
-| `GET` | `/api/payments` | List merchant payments | Either merchant role | `200 OK` |
-| `GET` | `/api/payments/{id}` | Find a merchant payment by ID | Either merchant role | `200 OK` |
-| `POST` | `/api/payments` | Create a pending payment using an idempotency key | Either merchant role | `201 Created` |
-| `PATCH` | `/api/payments/{id}/approve` | Approve a pending payment | `MERCHANT_ADMIN` | `200 OK` |
-| `PATCH` | `/api/payments/{id}/decline` | Decline a pending payment | `MERCHANT_ADMIN` | `200 OK` |
-| `PATCH` | `/api/payments/{id}/refund` | Refund an approved payment | `MERCHANT_ADMIN` | `200 OK` |
+| Method   | Endpoint                                            | Description                                                | Required role        | Success status   |
+| -------- | --------------------------------------------------- | ---------------------------------------------------------- | -------------------- | ---------------- |
+| `GET`    | `/api/health`                                       | Check API availability                                     | Public               | `200 OK`         |
+| `POST`   | `/api/auth/register`                                | Register a merchant and its administrator                  | Public               | `201 Created`    |
+| `POST`   | `/api/auth/login`                                   | Authenticate and obtain a JWT access token                 | Public               | `200 OK`         |
+| `POST`   | `/api/auth/refresh`                                 | Rotate a refresh token and obtain a new token pair         | Public               | `200 OK`         |
+| `POST`   | `/api/auth/logout`                                  | Revoke the current session                                 | Either merchant role | `204 No Content` |
+| `GET`    | `/api/merchant/me`                                  | Get the authenticated user and merchant context            | Either merchant role | `200 OK`         |
+| `GET`    | `/api/merchant/users`                               | List users from the authenticated merchant                 | `MERCHANT_ADMIN`     | `200 OK`         |
+| `POST`   | `/api/merchant/users`                               | Create a user in the authenticated merchant                | `MERCHANT_ADMIN`     | `201 Created`    |
+| `POST`   | `/api/merchant/webhooks`                            | Register a webhook endpoint and receive its signing secret | `MERCHANT_ADMIN`     | `201 Created`    |
+| `GET`    | `/api/merchant/webhooks`                            | List active webhook endpoints                              | `MERCHANT_ADMIN`     | `200 OK`         |
+| `DELETE` | `/api/merchant/webhooks/{id}`                       | Disable a webhook endpoint                                 | `MERCHANT_ADMIN`     | `204 No Content` |
+| `GET`    | `/api/merchant/webhook-events`                      | List and filter webhook events with pagination             | `MERCHANT_ADMIN`     | `200 OK`         |
+| `GET`    | `/api/merchant/webhook-events/summary`              | Get webhook processing health totals                       | `MERCHANT_ADMIN`     | `200 OK`         |
+| `GET`    | `/api/merchant/webhook-events/{eventId}`            | Inspect an event and its immutable payload                 | `MERCHANT_ADMIN`     | `200 OK`         |
+| `GET`    | `/api/merchant/webhook-events/{eventId}/deliveries` | Inspect the HTTP delivery history for an event             | `MERCHANT_ADMIN`     | `200 OK`         |
+| `GET`    | `/api/payments`                                     | List merchant payments                                     | Either merchant role | `200 OK`         |
+| `GET`    | `/api/payments/{id}`                                | Find a merchant payment by ID                              | Either merchant role | `200 OK`         |
+| `POST`   | `/api/payments`                                     | Create a pending payment using an idempotency key          | Either merchant role | `201 Created`    |
+| `PATCH`  | `/api/payments/{id}/approve`                        | Approve a pending payment                                  | `MERCHANT_ADMIN`     | `200 OK`         |
+| `PATCH`  | `/api/payments/{id}/decline`                        | Decline a pending payment                                  | `MERCHANT_ADMIN`     | `200 OK`         |
+| `PATCH`  | `/api/payments/{id}/refund`                         | Refund an approved payment                                 | `MERCHANT_ADMIN`     | `200 OK`         |
 
-## Running with Docker
+## Running the Backend with Docker
 
-This is the recommended way to run FinPay because it requires only Docker Desktop. Docker Compose starts SQL Server and Redis, creates the `finpay_db` database, applies the Flyway migrations, and then starts the API.
+This is the recommended way to run the FinPay API and its dependencies because it requires only Docker Desktop. Docker Compose starts SQL Server and Redis, creates the `finpay_db` database, applies the Flyway migrations, and then starts the API. The Angular development server is started separately.
 
 ### Requirements
 
@@ -146,6 +186,48 @@ To also delete the SQL Server and Redis volumes, including all stored payments a
 ```powershell
 docker compose down -v
 ```
+
+## Running the Angular Merchant Console
+
+The frontend lives in the `frontend` directory. During local development, Angular runs on port `4200` and proxies every `/api` request to the Spring Boot application on `http://localhost:8080`.
+
+### Requirements
+
+- Node.js `^22.22.3`, `^24.15.0`, or `>=26.0.0`
+- npm 8 or newer
+- The FinPay backend running on `http://localhost:8080`
+
+Install the frontend dependencies:
+
+```powershell
+cd frontend
+npm install
+```
+
+Start the development server:
+
+```powershell
+npm start
+```
+
+Open the Merchant Console at `http://localhost:4200`. Angular automatically reloads the application when source files change.
+
+The main frontend routes are:
+
+| Route                 | Description                                         | Access               |
+| --------------------- | --------------------------------------------------- | -------------------- |
+| `/register`           | Register a merchant and its first administrator     | Public               |
+| `/login`              | Authenticate a merchant user                        | Public               |
+| `/system/health`      | Check communication with the API                    | Public               |
+| `/app/overview`       | View the current user and merchant context          | Authenticated        |
+| `/app/payments`       | List, create, and inspect payments                  | Either merchant role |
+| `/app/team`           | List users and assign roles during account creation | `MERCHANT_ADMIN`     |
+| `/app/webhooks`       | Register and disable webhook destinations           | `MERCHANT_ADMIN`     |
+| `/app/webhook-events` | Inspect event health and delivery history           | `MERCHANT_ADMIN`     |
+
+The frontend stores the active token pair in `sessionStorage`, automatically adds the access token to protected API requests, and uses the rotating refresh token when an access token expires. Logging out clears the browser session and asks the API to revoke both credentials.
+
+Payment creation generates an `Idempotency-Key` for each new operation. Retrying the same operation preserves its original request body and key, allowing the API to replay the first response without creating a duplicate payment.
 
 ## Swagger and OpenAPI
 
@@ -320,7 +402,7 @@ Example response:
 ```json
 {
   "id": 1,
-  "amount": 125.50,
+  "amount": 125.5,
   "currency": "PEN",
   "status": "PENDING",
   "createdAt": "2026-09-07T20:00:00Z",
@@ -369,6 +451,8 @@ Missing or invalid tokens return a structured `401 Unauthorized` response. Missi
 
 ## Running the Tests
 
+### Backend tests
+
 Make sure Docker Desktop is running, then execute:
 
 ```powershell
@@ -393,6 +477,33 @@ The test suite includes:
 - OpenAPI and Swagger endpoint checks
 
 Testcontainers creates isolated SQL Server and Redis instances for integration tests and removes them when the test run finishes. No permanent test database or Redis instance is required.
+
+### Frontend tests
+
+From the `frontend` directory, run the Angular test suite once:
+
+```powershell
+npm test -- --no-watch --no-progress
+```
+
+The frontend tests cover:
+
+- Authentication API contracts and per-tab token storage
+- JWT attachment, refresh rotation, retry behavior, and logout
+- Authentication and administrator route guards
+- Merchant registration and validation errors
+- Payment creation, idempotent retries, lifecycle actions, and role restrictions
+- Merchant user listing, role assignment, and duplicate-email errors
+- Webhook endpoint creation, one-time secret handling, validation, and disabling
+- Dashboard summaries, event filters, date validation, immutable payloads, and delivery attempts
+
+Create a production frontend bundle with:
+
+```powershell
+npm run build
+```
+
+The optimized output is written to `frontend/dist/frontend`.
 
 ## Running without Docker Compose
 
@@ -436,6 +547,21 @@ src/test/java/com/finpay/api
 |-- model/        Domain tests
 |-- service/      Mockito unit tests
 `-- ...           SQL Server and end-to-end integration tests
+
+frontend/src/app
+|-- core/
+|   |-- api/      Typed REST API services
+|   |-- auth/     Session state, JWT interceptors, and route guards
+|   `-- models/   TypeScript request and response contracts
+|-- features/
+|   |-- auth/     Login and merchant registration
+|   |-- payments/ Payment list, creation, detail, and lifecycle actions
+|   |-- session/  Authenticated merchant overview
+|   |-- team/     Merchant users and role assignment
+|   |-- webhooks/ Endpoint configuration and delivery dashboard
+|   `-- system/   Public API health check
+|-- layout/       Authenticated Merchant Console shell
+`-- shared/       Reusable styles, errors, and presentation components
 ```
 
 ## Design Decisions
@@ -460,16 +586,23 @@ src/test/java/com/finpay/api
 - **Signed delivery:** webhook secrets are encrypted at rest and used to authenticate payloads with HMAC-SHA256.
 - **At-least-once retries:** failed deliveries are persisted and retried with backoff; consumers deduplicate by event ID.
 - **Multi-stage Docker build:** Maven compiles the application in a build image, while the final image contains only the Java runtime and packaged application.
+- **Feature-oriented frontend:** Angular code is organized around user-facing capabilities while shared API, authentication, and model concerns remain centralized.
+- **Frontend defense in depth:** route guards and role-aware controls improve the user experience, while Spring Security remains the authoritative permission boundary.
+- **Automatic token renewal:** an HTTP interceptor refreshes expired access tokens and retries the original request without dropping business headers such as `Idempotency-Key`.
+- **One-time secret handling:** the Merchant Console displays a newly generated webhook signing secret only from its creation response and never expects it from later list operations.
+- **Operational visibility:** the webhook dashboard separates business events from individual HTTP attempts, making retries and destination failures traceable without direct database access.
 
 ## Roadmap
 
-The current version completes the backend foundation and begins the multi-merchant phase. Possible future additions include:
+The current version includes the backend foundation and a functional Angular Merchant Console. Possible future additions include:
 
 - Invitation-based onboarding and password setup for merchant users
+- Role changes, account disabling, and password-reset workflows
 - Kafka-based event streaming for higher throughput and multiple consumers
-- Asynchronous messaging
-- Observability and production profiles
-- Angular frontend
+- Structured application metrics, tracing, and production profiles
+- Frontend end-to-end tests with Playwright or Cypress
+- Containerized frontend deployment with Nginx
+- Frontend checks in GitHub Actions
 
 ## Instructive Scope
 
