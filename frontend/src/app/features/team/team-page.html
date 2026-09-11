@@ -1,0 +1,128 @@
+<main>
+  <header>
+    <div>
+      <p class="eyebrow">Administration</p>
+      <h1>Team</h1>
+      <p>Manage the users who can access this merchant workspace.</p>
+    </div>
+    <button type="button" (click)="loadUsers()" [disabled]="loading() || creating()">
+      {{ loading() ? 'Refreshing...' : 'Refresh list' }}
+    </button>
+  </header>
+
+  @if (error()) {
+    <p class="notice" role="alert">{{ error() }}</p>
+  }
+  @if (success()) {
+    <p class="notice" role="status">{{ success() }}</p>
+  }
+
+  <section class="summary" aria-label="Team summary">
+    <article>
+      <span>Total members</span>
+      <strong>{{ users().length }}</strong>
+    </article>
+    <article>
+      <span>Administrators</span>
+      <strong>{{ administratorCount() }}</strong>
+    </article>
+    <article>
+      <span>Operators</span>
+      <strong>{{ operatorCount() }}</strong>
+    </article>
+  </section>
+
+  <section aria-labelledby="members-title">
+    <h2 id="members-title">Members</h2>
+    @if (loading() && users().length === 0) {
+      <p role="status">Loading team...</p>
+    } @else if (!loading() && !error() && users().length === 0) {
+      <p>No team members were found.</p>
+    }
+
+    @if (users().length > 0) {
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Email</th>
+              <th>Role</th>
+              <th>Status</th>
+              <th>Joined</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (user of users(); track user.membershipId) {
+              <tr>
+                <td>{{ user.email }}</td>
+                <td>
+                  <span class="badge">{{ user.role }}</span>
+                </td>
+                <td>{{ user.status }}</td>
+                <td>{{ user.createdAt | date: 'medium' }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </section>
+
+  <section aria-labelledby="add-member-title">
+    <h2 id="add-member-title">Add team member</h2>
+    <p>The new user receives an active account in this merchant only.</p>
+    <form [formGroup]="form" (ngSubmit)="createUser()" novalidate>
+      <label>
+        Email
+        <input
+          type="email"
+          formControlName="email"
+          autocomplete="off"
+          placeholder="operator@store.com"
+        />
+        @if (form.controls.email.touched && form.controls.email.invalid) {
+          <small role="alert">Enter a valid email address.</small>
+        }
+      </label>
+
+      <label>
+        Temporary password
+        <input type="password" formControlName="password" autocomplete="new-password" />
+        <small
+          >12–72 characters with uppercase, lowercase, number and special character. No
+          spaces.</small
+        >
+        @if (form.controls.password.touched && form.controls.password.invalid) {
+          <small role="alert">The password does not meet the security requirements.</small>
+        }
+      </label>
+
+      <label>
+        Role
+        <select formControlName="role">
+          <option value="MERCHANT_USER">Merchant user — payments access</option>
+          <option value="MERCHANT_ADMIN">Merchant admin — full workspace access</option>
+        </select>
+      </label>
+
+      <div class="role-help">
+        @if (form.controls.role.value === 'MERCHANT_ADMIN') {
+          <strong>Merchant admin</strong>
+          <span>Can manage team members, payment status and webhook operations.</span>
+        } @else {
+          <strong>Merchant user</strong>
+          <span>Can list, create and inspect payments, but cannot change their status.</span>
+        }
+      </div>
+
+      <button [disabled]="creating()">
+        {{ creating() ? 'Adding member...' : 'Add team member' }}
+      </button>
+    </form>
+  </section>
+
+  <p class="scope-note">
+    Roles are assigned when an account is created. Changing roles or disabling accounts requires a
+    future backend endpoint.
+  </p>
+</main>

@@ -1,0 +1,70 @@
+.eyebrow {
+  margin: 0;
+  color: #525252;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin: 24px 0 36px;
+}
+
+.summary article {
+  display: grid;
+  gap: 8px;
+  padding: 20px;
+  background: white;
+  border: 1px solid #d4d4d4;
+  border-radius: 10px;
+}
+
+.summary span {
+  color: #525252;
+}
+
+.summary strong {
+  font-size: 2rem;
+}
+
+h2 {
+  margin-top: 36px;
+}
+
+.badge {
+  display: inline-block;
+  padding: 4px 8px;
+  border: 1px solid #a3a3a3;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.role-help {
+  display: grid;
+  gap: 4px;
+  padding: 14px;
+  background: #f5f5f5;
+  border: 1px solid #d4d4d4;
+  border-radius: 6px;
+}
+
+.role-help span,
+.scope-note {
+  color: #525252;
+}
+
+.scope-note {
+  max-width: 720px;
+  font-size: 0.9rem;
+}
+
+@media (max-width: 720px) {
+  .summary {
+    grid-template-columns: 1fr;
+  }
+}

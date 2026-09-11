@@ -57,15 +57,8 @@ export const routes: Routes = [
       {
         path: 'team',
         loadComponent: () =>
-          import('./shared/feature-placeholder/feature-placeholder').then(
-            (component) => component.FeaturePlaceholder,
-          ),
+          import('./features/team/team-page').then((component) => component.TeamPage),
         canActivate: [adminGuard],
-        data: {
-          heading: 'Team',
-          description: 'Manage users and roles that belong to the authenticated merchant.',
-          nextCapability: 'This section is restricted to MERCHANT_ADMIN.',
-        },
         title: 'Team | FinPay Console',
       },
       {

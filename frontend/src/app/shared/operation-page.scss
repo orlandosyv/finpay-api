@@ -39,12 +39,14 @@ label {
   gap: 8px;
   font-weight: 600;
 }
-input {
+input,
+select {
   width: 100%;
   min-height: 44px;
   padding: 10px;
   border: 1px solid #737373;
   border-radius: 6px;
+  background: white;
 }
 button,
 .button {
