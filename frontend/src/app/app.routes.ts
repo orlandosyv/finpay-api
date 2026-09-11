@@ -64,29 +64,30 @@ export const routes: Routes = [
       {
         path: 'webhooks',
         loadComponent: () =>
-          import('./shared/feature-placeholder/feature-placeholder').then(
-            (component) => component.FeaturePlaceholder,
+          import('./features/webhooks/webhook-endpoints-page').then(
+            (component) => component.WebhookEndpointsPage,
           ),
         canActivate: [adminGuard],
-        data: {
-          heading: 'Webhook endpoints',
-          description: 'Register callback URLs and manage endpoint activation for this merchant.',
-          nextCapability: 'This section is restricted to MERCHANT_ADMIN.',
-        },
         title: 'Webhooks | FinPay Console',
+      },
+      {
+        path: 'webhook-events/:eventId',
+        loadComponent: () =>
+          import('./features/webhooks/webhook-dashboard-page').then(
+            (component) => component.WebhookDashboardPage,
+          ),
+        canActivate: [adminGuard],
+        data: { mode: 'detail' },
+        title: 'Webhook event | FinPay Console',
       },
       {
         path: 'webhook-events',
         loadComponent: () =>
-          import('./shared/feature-placeholder/feature-placeholder').then(
-            (component) => component.FeaturePlaceholder,
+          import('./features/webhooks/webhook-dashboard-page').then(
+            (component) => component.WebhookDashboardPage,
           ),
         canActivate: [adminGuard],
-        data: {
-          heading: 'Webhook deliveries',
-          description: 'Inspect event processing, attempts, HTTP responses and retry outcomes.',
-          nextCapability: 'This section is restricted to MERCHANT_ADMIN.',
-        },
+        data: { mode: 'list' },
         title: 'Webhook deliveries | FinPay Console',
       },
       {

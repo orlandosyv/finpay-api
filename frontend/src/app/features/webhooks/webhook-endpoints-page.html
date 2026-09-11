@@ -1,0 +1,126 @@
+<main>
+  <header>
+    <div>
+      <p class="eyebrow">Notifications</p>
+      <h1>Webhook endpoints</h1>
+      <p>Register the merchant servers that receive signed payment events.</p>
+    </div>
+    <button type="button" (click)="loadEndpoints()" [disabled]="loading() || creating()">
+      {{ loading() ? 'Refreshing...' : 'Refresh list' }}
+    </button>
+  </header>
+
+  @if (error()) {
+    <p class="notice" role="alert">{{ error() }}</p>
+  }
+
+  @if (createdEndpoint(); as created) {
+    <section class="secret-panel" aria-labelledby="secret-title">
+      <p class="eyebrow">Shown once</p>
+      <h2 id="secret-title">Store this signing secret now</h2>
+      <p>
+        FinPay uses it to sign each request. It cannot be retrieved again after this message is
+        closed.
+      </p>
+      <code>{{ created.signingSecret }}</code>
+      <div class="actions">
+        <button type="button" (click)="copySecret()">Copy secret</button>
+        <button type="button" class="secondary" (click)="acknowledgeSecret()">I stored it</button>
+      </div>
+      @if (copyStatus()) {
+        <p role="status">{{ copyStatus() }}</p>
+      }
+    </section>
+  }
+
+  <section aria-labelledby="active-endpoints-title">
+    <h2 id="active-endpoints-title">Active endpoints</h2>
+    @if (loading() && endpoints().length === 0) {
+      <p role="status">Loading endpoints...</p>
+    } @else if (!loading() && !error() && endpoints().length === 0) {
+      <p>No active endpoints. Register one before generating payment events.</p>
+    }
+
+    @if (endpoints().length > 0) {
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Destination</th>
+              <th>Created</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (endpoint of endpoints(); track endpoint.id) {
+              <tr>
+                <td>#{{ endpoint.id }}</td>
+                <td class="url-cell">{{ endpoint.url }}</td>
+                <td>{{ endpoint.createdAt | date: 'medium' }}</td>
+                <td>
+                  @if (confirmationId() === endpoint.id) {
+                    <div class="inline-confirmation">
+                      <span>Disable this endpoint?</span>
+                      <button
+                        type="button"
+                        (click)="disableEndpoint(endpoint.id)"
+                        [disabled]="disablingId() !== null"
+                      >
+                        {{ disablingId() === endpoint.id ? 'Disabling...' : 'Confirm' }}
+                      </button>
+                      <button
+                        type="button"
+                        class="secondary"
+                        (click)="cancelDisable()"
+                        [disabled]="disablingId() !== null"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  } @else {
+                    <button
+                      type="button"
+                      class="secondary"
+                      (click)="requestDisable(endpoint.id)"
+                      [disabled]="disablingId() !== null"
+                    >
+                      Disable
+                    </button>
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </section>
+
+  <section aria-labelledby="register-endpoint-title">
+    <h2 id="register-endpoint-title">Register endpoint</h2>
+    <form [formGroup]="form" (ngSubmit)="createEndpoint()" novalidate>
+      <label>
+        Destination URL
+        <input
+          type="url"
+          formControlName="url"
+          maxlength="2048"
+          placeholder="https://merchant.example.com/webhooks/finpay"
+        />
+        <small>Use an HTTP or HTTPS URL. Production integrations should use HTTPS.</small>
+        @if (form.controls.url.touched && form.controls.url.invalid) {
+          <small role="alert">Enter a valid HTTP or HTTPS URL.</small>
+        }
+      </label>
+      <button [disabled]="creating()">
+        {{ creating() ? 'Registering...' : 'Register endpoint' }}
+      </button>
+    </form>
+  </section>
+
+  <p class="scope-note">
+    Disabling an endpoint stops future deliveries to it. Historical attempts remain available in the
+    delivery dashboard.
+  </p>
+</main>
